@@ -27,9 +27,9 @@ class Server:
 
     def distribute(self, client, batchnorm_dataset=None):
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-        model.load_state_dict(self.model_state_dict)
-        if batchnorm_dataset is not None:
-            model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
+        model.load_state_dict(self.model_state_dict,strict= False)
+        # if batchnorm_dataset is not None:
+        #     model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
         model_state_dict = save_model_state_dict(model.state_dict())
         for m in range(len(client)):
             if client[m].active:
@@ -271,6 +271,33 @@ class Client:
 
     def train(self, dataset, lr, metric, logger):
         if cfg['loss_mode'] == 'sup':
+            data_loader = make_data_loader({'train': dataset}, 'client')['train']
+            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            model.load_state_dict(self.model_state_dict, strict=False)
+            self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+            optimizer = make_optimizer(model.parameters(), 'local')
+            optimizer.load_state_dict(self.optimizer_state_dict)
+            model.train(True)
+            if cfg['client']['num_epochs'] == 1:
+                num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
+            else:
+                num_batches = None
+            for epoch in range(1, cfg['client']['num_epochs'] + 1):
+                for i, input in enumerate(data_loader):
+                    input = collate(input)
+                    input_size = input['data'].size(0)
+                    input['loss_mode'] = cfg['loss_mode']
+                    input = to_device(input, cfg['device'])
+                    optimizer.zero_grad()
+                    output = model(input)
+                    output['loss'].backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                    optimizer.step()
+                    evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                    logger.append(evaluation, 'train', n=input_size)
+                    if num_batches is not None and i == num_batches - 1:
+                        break
+        elif cfg['loss_mode'] == 'sim':
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
             model.load_state_dict(self.model_state_dict, strict=False)

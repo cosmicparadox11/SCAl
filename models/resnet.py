@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .utils import init_param, make_batchnorm, loss_fn
 from config import cfg
-
+from data import SimDataset
 
 class Block(nn.Module):
     expansion = 1
@@ -50,9 +50,58 @@ class Bottleneck(nn.Module):
         out += shortcut
         return out
 
+class LinearLayer(nn.Module):
+    def __init__(self,
+                 in_features,
+                 out_features,
+                 use_bias = True,
+                 use_bn = False,
+                 **kwargs):
+        super(LinearLayer, self).__init__(**kwargs)
 
+        self.in_features = in_features
+        self.out_features = out_features
+        self.use_bias = use_bias
+        self.use_bn = use_bn
+        
+        self.linear = nn.Linear(self.in_features, 
+                                self.out_features, 
+                                bias = self.use_bias and not self.use_bn)
+        if self.use_bn:
+             self.bn = nn.BatchNorm1d(self.out_features)
+
+    def forward(self,x):
+        x = self.linear(x)
+        if self.use_bn:
+            x = self.bn(x)
+        return x
+class ProjectionHead(nn.Module):
+    def __init__(self,
+                 in_features,
+                 hidden_features,
+                 out_features,
+                 head_type = 'nonlinear',
+                 **kwargs):
+        super(ProjectionHead,self).__init__(**kwargs)
+        self.in_features = in_features
+        self.out_features = out_features
+        self.hidden_features = hidden_features
+        self.head_type = head_type
+
+        if self.head_type == 'linear':
+            self.layers = LinearLayer(self.in_features,self.out_features,False, True)
+        elif self.head_type == 'nonlinear':
+            self.layers = nn.Sequential(
+                LinearLayer(self.in_features,self.hidden_features,True, True),
+                nn.ReLU(),
+                LinearLayer(self.hidden_features,self.out_features,False,True))
+        
+    def forward(self,x):
+        x = self.layers(x)
+        return x
+    
 class ResNet(nn.Module):
-    def __init__(self, data_shape, hidden_size, block, num_blocks, target_size):
+    def __init__(self, data_shape, hidden_size, block, num_blocks, target_size,sim_out=int(128)):
         super().__init__()
         self.in_planes = hidden_size[0]
         self.conv1 = nn.Conv2d(data_shape[0], hidden_size[0], kernel_size=3, stride=1, padding=1, bias=False)
@@ -62,7 +111,10 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, hidden_size[3], num_blocks[3], stride=2)
         self.n4 = nn.BatchNorm2d(hidden_size[3] * block.expansion)
         self.linear = nn.Linear(hidden_size[3] * block.expansion, target_size)
-
+        # self.projection = ProjectionHead(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion,sim_out)
+        self.projection = nn.Sequential(nn.Linear(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion),
+                                        nn.ReLU(),
+                                        nn.Linear(hidden_size[3] * block.expansion,sim_out))
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -80,12 +132,17 @@ class ResNet(nn.Module):
         x = F.relu(self.n4(x))
         x = F.adaptive_avg_pool2d(x, 1)
         x = x.view(x.size(0), -1)
+        z = self.projection(x)
         x = self.linear(x)
-        return x
+        return x , z
 
     def forward(self, input):
         output = {}
-        output['target'] = self.f(input['data'])
+        transform=SimDataset('CIFAR10')
+        input = transform(input)
+        # print(input.keys())
+        output['target'],output['sim_vector'] = self.f(input['data'])
+        # output['target']= self.f(input['data'])
         if 'loss_mode' in input:
             if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
@@ -98,6 +155,7 @@ class ResNet(nn.Module):
                 mix_output = self.f(input['mix_data'])
                 output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][:, 0].detach()) + (
                         1 - input['lam']) * loss_fn(mix_output, input['mix_target'][:, 1].detach())
+
         else:
             if not torch.any(input['target'] == -1):
                 output['loss'] = loss_fn(output['target'], input['target'])

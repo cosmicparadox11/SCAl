@@ -25,9 +25,11 @@ def fetch_dataset(data_name):
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        # dataset['train'].transform = datasets.Compose([
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(*data_stats[data_name])])
         dataset['train'].transform = datasets.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(*data_stats[data_name])])
+            transforms.ToTensor()])
         dataset['test'].transform = datasets.Compose([
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
@@ -36,11 +38,11 @@ def fetch_dataset(data_name):
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset['train'].transform = datasets.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-            transforms.ToTensor(),
-            transforms.Normalize(*data_stats[data_name])])
+        # dataset['train'].transform = datasets.Compose([
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(*data_stats[data_name])])
         dataset['test'].transform = datasets.Compose([
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
@@ -308,7 +310,45 @@ class FixTransform(object):
         input = {**input, 'data': data, 'aug': aug}
         return input
 
-
+class SimDataset(object):
+    def __init__(self, data_name,transform_type='sim' ,s=0.5):
+        import datasets
+        self.s=s
+        if data_name in ['CIFAR10', 'CIFAR100']:
+            if transform_type == 'sim':
+                self.augment = transforms.Compose([transforms.ToPILImage(),
+                                                transforms.RandomHorizontalFlip(0.5),
+                                                transforms.RandomResizedCrop(32,(0.8,1.0)),
+                                                transforms.Compose([transforms.RandomApply([transforms.ColorJitter(0.8*self.s, 
+                                                                                                                    0.8*self.s, 
+                                                                                                                    0.8*self.s, 
+                                                                                                                    0.2*self.s)], p = 0.8),
+                                                                    transforms.RandomGrayscale(p=0.2)
+                                                                    ]),
+                                transforms.ToTensor(),
+                                transforms.Normalize(*data_stats[data_name])
+                                ])
+            elif transform_type == 'normal':
+                self.augment = transforms.Compose([transforms.ToPILImage(),
+                                transforms.ToTensor(),
+                                transforms.Normalize(*data_stats[data_name])
+                                ])
+    def __call__(self, input):
+        A1 = np.empty_like(input['data'].cpu().numpy()
+                             )
+        A2 = np.empty_like(input['data'].cpu().numpy()
+                             )
+        # print(temp.shape)
+        for num,i in enumerate(input['data']):
+            A1[num] = self.augment(i)
+            A2[num] = self.augment(i)
+        A1 = torch.Tensor(A1)
+        A2 = torch.Tensor(A2)
+        # print(type(temp),temp.shape)
+        A1 = to_device(A1,cfg['device'])
+        A2 = to_device(A2,cfg['device'])
+        input = {**input,'aug1':A1,'aug2':A2}
+        return input
 class MixDataset(Dataset):
     def __init__(self, size, dataset):
         self.size = size
