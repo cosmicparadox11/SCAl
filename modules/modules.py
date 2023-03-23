@@ -224,7 +224,7 @@ class Client:
         return hard_pseudo_label, mask
 
     def make_dataset(self, dataset, metric, logger):
-        if 'sup' in cfg['loss_mode']:
+        if 'sup' in cfg['loss_mode'] or 'sim' in cfg['loss_mode']:
             return dataset
         elif 'fix' in cfg['loss_mode']:
             with torch.no_grad():
@@ -278,6 +278,9 @@ class Client:
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
+            # print(f'is client number {self.client_id} a supervised model={self.supervised}')
+            # for v,k in model.named_parameters():
+            #     print(v)
             if cfg['client']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
             else:
@@ -290,6 +293,7 @@ class Client:
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
                     output = model(input)
+                    # print(output.keys())
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
@@ -305,6 +309,12 @@ class Client:
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
+            # for v,k in model.named_parameters():
+            #     print(f'nmae{v} grad required{k.requires_grad}')
+            if self.supervised == False:
+                model.linear.requires_grad_(False)
+            # for v,k in model.named_parameters():
+            #     print(f'nmae{v} grad required{k.requires_grad}')
             if cfg['client']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
             else:
@@ -315,8 +325,11 @@ class Client:
                     input_size = input['data'].size(0)
                     input['loss_mode'] = cfg['loss_mode']
                     input = to_device(input, cfg['device'])
+                    input['supervised_mode'] = self.supervised
+                    input['batch_size'] = cfg['client']['batch_size']['train']
                     optimizer.zero_grad()
                     output = model(input)
+                    # print(output.keys())
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()

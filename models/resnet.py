@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import init_param, make_batchnorm, loss_fn
-from config import cfg
+from .utils import init_param, make_batchnorm, loss_fn , SimCLR_Loss
 from data import SimDataset
+from config import cfg
 
 class Block(nn.Module):
     expansion = 1
@@ -141,11 +141,31 @@ class ResNet(nn.Module):
         transform=SimDataset('CIFAR10')
         input = transform(input)
         # print(input.keys())
-        output['target'],output['sim_vector'] = self.f(input['data'])
+        if input['loss_mode'] == 'sim' and input['supervised_mode']!= True:
+            _,output['sim_vector_i'] = self.f(input['aug1'])
+            _,output['sim_vector_j'] = self.f(input['aug2'])
+            output['target'],_ = self.f(input['data'])
+        elif  input['loss_mode'] == 'sim' and input['supervised_mode'] == True:
+            _,output['sim_vector_i'] = self.f(input['aug1'])
+            _,output['sim_vector_j'] = self.f(input['aug2'])
+            output['target'],_ = self.f(input['data'])
+        else:
+            output['target'],_ = self.f(input['data'])
         # output['target']= self.f(input['data'])
-        if 'loss_mode' in input:
+        if 'loss_mode' in input and 'test' not in input:
             if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
+            elif input['loss_mode'] == 'sim':
+                if input['supervised_mode'] == True:
+                    criterion = SimCLR_Loss(input['batch_size'])
+                    output['classification_loss'] = loss_fn(output['target'], input['target'])
+                    output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
+                    output['loss'] = output['classification_loss']+output['sim_loss']
+                elif input['supervised_mode'] == False:
+                    criterion = SimCLR_Loss(input['batch_size'])
+                    # output['classification_loss'] = loss_fn(output['target'], input['target'])
+                    output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
+                    output['loss'] = output['sim_loss']
             elif input['loss_mode'] == 'fix':
                 aug_output = self.f(input['aug'])
                 output['loss'] = loss_fn(aug_output, input['target'].detach())

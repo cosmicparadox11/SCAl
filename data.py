@@ -223,7 +223,29 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
         transform = FixTransform(cfg['data_name'])
         _client_dataset.transform = transform
     return _server_dataset, _client_dataset, supervised_idx
-
+def split_class_dataset(dataset, data_split_mode = 'iid'):
+    data_split = {}
+    if data_split_mode == 'iid':
+        data_split['train'] = seperate_sup_unsup(dataset['train'])
+        data_split['test'] = seperate_sup_unsup(dataset['test'])
+    return data_split
+def seperate_sup_unsup(client_dataset):
+    target = torch.tensor(client_dataset.target)
+    num_supervised_per_class = len(client_dataset)// (cfg['target_size']*cfg['num_clients'])
+    data_split={}
+    for i in range(int(cfg['num_clients'])):
+        data_split[i] = []
+    for j in range(cfg['target_size']):
+        idx = torch.where(target == j)[0]
+        
+        for i in range(int(cfg['num_clients'])):
+            num_items_i = min(len(idx), num_supervised_per_class)
+            idx_i = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
+            data_split[i].extend(idx_i)
+            idx = list(set(idx.tolist()) - set(idx_i))
+            idx = torch.Tensor(idx)
+        
+    return data_split
 
 def make_batchnorm_dataset_su(server_dataset, client_dataset):
     batchnorm_dataset = copy.deepcopy(server_dataset)
@@ -253,6 +275,10 @@ def make_batchnorm_stats(dataset, model, tag):
         for i, input in enumerate(data_loader):
             input = collate(input)
             input = to_device(input, cfg['device'])
+            input['loss_mode'] = cfg['loss_mode']
+            input['supervised_mode'] = False
+            input['test'] = True
+            input['batch_size'] = cfg['client']['batch_size']['train']
             test_model(input)
         dataset.transform = _transform
     return test_model

@@ -56,7 +56,8 @@ class Metric(object):
 
     def evaluate(self, metric_names, input, output):
         evaluation = {}
-        for metric_name in metric_names:
+        for metric_name in metric_names: 
+            # print(metric_name)
             evaluation[metric_name] = self.metric[metric_name](input, output)
         return evaluation
 

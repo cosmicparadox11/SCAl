@@ -263,7 +263,8 @@ def make_scheduler(optimizer, tag):
     return scheduler
 
 
-def resume(model_tag, load_tag='checkpoint', verbose=True):
+# def resume(model_tag, load_tag='checkpoint', verbose=True):
+def resume(model_tag, load_tag='best', verbose=True):
     if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
         result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
     else:

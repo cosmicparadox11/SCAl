@@ -9,7 +9,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 from config import cfg, process_args
 from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset, separate_dataset_su, \
-    make_batchnorm_dataset_su, make_batchnorm_stats
+    make_batchnorm_dataset_su, make_batchnorm_stats , split_class_dataset
 from metrics import Metric
 from modules import Server, Client
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
@@ -65,13 +65,16 @@ def runExperiment():
     #     raise ValueError('Not valid sbn')
     # print(len(batchnorm_dataset))
     batchnorm_dataset = client_dataset['train']
-    data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
+    # data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
+    data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
     if cfg['loss_mode'] != 'sup':
         metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
                          'test': ['Loss', 'Accuracy']})
     else:
         metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    print(cfg)
+    if cfg['loss_mode'] == 'sim':
+        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
+    # print(metric.metric_name['train'])
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -137,8 +140,10 @@ def make_client(model, data_split):
         client[m] = Client(client_id[m], model, {'train': data_split['train'][m], 'test': data_split['test'][m]})
     num_supervised_clients = int(cfg['num_supervised_clients'])
     client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_supervised_clients]].tolist()
+    print(client_id)
     for i in range(num_supervised_clients):
         client[client_id[i]].supervised = True
+        
     return client
 
 
@@ -206,6 +211,9 @@ def test(data_loader, model, metric, logger, epoch):
             input = collate(input)
             input_size = input['data'].size(0)
             input = to_device(input, cfg['device'])
+            input['loss_mode'] = cfg['loss_mode']
+            input['supervised_mode'] = False
+            input['test'] = True
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)
