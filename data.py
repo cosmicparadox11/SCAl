@@ -183,8 +183,8 @@ def non_iid(dataset, num_users):
 
 def separate_dataset(dataset, idx):
     separated_dataset = copy.deepcopy(dataset)
-    separated_dataset.data = [dataset.data[s] for s in idx]
-    separated_dataset.target = [dataset.target[s] for s in idx]
+    separated_dataset.data = [dataset.data[int(s)] for s in idx]
+    separated_dataset.target = [dataset.target[int(s)] for s in idx]
     separated_dataset.other['id'] = list(range(len(separated_dataset.data)))
     return separated_dataset
 

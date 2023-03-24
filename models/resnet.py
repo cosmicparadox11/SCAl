@@ -138,17 +138,18 @@ class ResNet(nn.Module):
 
     def forward(self, input):
         output = {}
-        transform=SimDataset('CIFAR10')
-        input = transform(input)
-        # print(input.keys())
-        if input['loss_mode'] == 'sim' and input['supervised_mode']!= True:
-            _,output['sim_vector_i'] = self.f(input['aug1'])
-            _,output['sim_vector_j'] = self.f(input['aug2'])
-            output['target'],_ = self.f(input['data'])
-        elif  input['loss_mode'] == 'sim' and input['supervised_mode'] == True:
-            _,output['sim_vector_i'] = self.f(input['aug1'])
-            _,output['sim_vector_j'] = self.f(input['aug2'])
-            output['target'],_ = self.f(input['data'])
+        if input['loss_mode'] == 'sim':
+            transform=SimDataset('CIFAR10')
+            input = transform(input)
+            # print(input.keys())
+            if input['loss_mode'] == 'sim' and input['supervised_mode']!= True:
+                _,output['sim_vector_i'] = self.f(input['aug1'])
+                _,output['sim_vector_j'] = self.f(input['aug2'])
+                output['target'],_ = self.f(input['data'])
+            elif  input['loss_mode'] == 'sim' and input['supervised_mode'] == True:
+                _,output['sim_vector_i'] = self.f(input['aug1'])
+                _,output['sim_vector_j'] = self.f(input['aug2'])
+                output['target'],_ = self.f(input['data'])
         else:
             output['target'],_ = self.f(input['data'])
         # output['target']= self.f(input['data'])
