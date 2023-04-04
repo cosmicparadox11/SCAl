@@ -10,6 +10,7 @@ control:
   gm: '0.5'
   sbn: '0'
   ft: '1'
+  switch_epoch : 50
 # data
 data_name: CIFAR10
 model_name: resnet18
@@ -17,10 +18,11 @@ model_name: resnet18
 num_supervised_clients: '10'
 num_workers: 0
 init_seed: 0
-num_experiments: 2
+num_experiments: 1
 log_interval: 0.25
 device: cuda
 world_size: 1
 resume_mode: 0
-threshold : .095
+threshold : .95
 verbose: False
+switch_epoch : 50

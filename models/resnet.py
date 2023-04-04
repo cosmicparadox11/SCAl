@@ -138,23 +138,23 @@ class ResNet(nn.Module):
 
     # def forward(self, input):
     #     output = {}
-    #     if 'sim' in cfg['loss_mode']:
-    #         if cfg['pred'] == True:
-    #             output['target'],_ = self.f(input['augw'])
-    #         else:
-    #             transform=SimDataset('CIFAR10')
-    #             input = transform(input)
-    #             # print(input.keys())
-    #             if 'sim' in cfg['loss_mode'] and input['supervised_mode']!= True:
-    #                 _,output['sim_vector_i'] = self.f(input['aug1'])
-    #                 _,output['sim_vector_j'] = self.f(input['aug2'])
-    #                 output['target'],_ = self.f(input['data'])
-    #             elif 'sim' in cfg['loss_mode'] and input['supervised_mode'] == True:
-    #                 _,output['sim_vector_i'] = self.f(input['aug1'])
-    #                 _,output['sim_vector_j'] = self.f(input['aug2'])
-    #                 output['target'],_ = self.f(input['data'])
-    #     else:
-    #         output['target'],_ = self.f(input['data'])
+        # if 'sim' in cfg['loss_mode']:
+        #     if cfg['pred'] == True:
+        #         output['target'],_ = self.f(input['augw'])
+        #     else:
+        #         transform=SimDataset('CIFAR10')
+        #         input = transform(input)
+        #         # print(input.keys())
+        #         if 'sim' in cfg['loss_mode'] and input['supervised_mode']!= True:
+        #             _,output['sim_vector_i'] = self.f(input['aug1'])
+        #             _,output['sim_vector_j'] = self.f(input['aug2'])
+        #             output['target'],_ = self.f(input['data'])
+        #         elif 'sim' in cfg['loss_mode'] and input['supervised_mode'] == True:
+        #             _,output['sim_vector_i'] = self.f(input['aug1'])
+        #             _,output['sim_vector_j'] = self.f(input['aug2'])
+        #             output['target'],_ = self.f(input['data'])
+        # else:
+        #     output['target'],_ = self.f(input['data'])
     #     # output['target']= self.f(input['data'])
     #     if 'loss_mode' in input and 'test' not in input and cfg['pred'] == False:
     #         if input['loss_mode'] == 'sup':
@@ -186,22 +186,27 @@ class ResNet(nn.Module):
     #     return output
     def forward(self, input):
         output = {}
-        if 'sim' in input['loss_mode']:
-            transform=SimDataset('CIFAR10')
-            input = transform(input)
-            # print(input.keys())
-            if 'sim' in input['loss_mode'] and input['supervised_mode']!= True:
-                _,output['sim_vector_i'] = self.f(input['aug1'])
-                _,output['sim_vector_j'] = self.f(input['aug2'])
-                output['target'],_ = self.f(input['data'])
-            elif  'sim' in input['loss_mode'] and input['supervised_mode'] == True:
-                _,output['sim_vector_i'] = self.f(input['aug1'])
-                _,output['sim_vector_j'] = self.f(input['aug2'])
-                output['target'],_ = self.f(input['data'])
+        if 'sim' in cfg['loss_mode']:
+            if cfg['pred'] == True:
+                output['target'],_ = self.f(input['augw'])
+            else:
+                transform=SimDataset('CIFAR10')
+                input = transform(input)
+                # print(input.keys())
+                if 'sim' in cfg['loss_mode'] and input['supervised_mode']!= True:
+                    _,output['sim_vector_i'] = self.f(input['aug1'])
+                    _,output['sim_vector_j'] = self.f(input['aug2'])
+                    output['target'],_ = self.f(input['data'])
+                elif 'sim' in cfg['loss_mode'] and input['supervised_mode'] == True:
+                    _,output['sim_vector_i'] = self.f(input['aug1'])
+                    _,output['sim_vector_j'] = self.f(input['aug2'])
+                    output['target'],__ = self.f(input['data'])
         else:
             output['target'],_ = self.f(input['data'])
         # output['target']= self.f(input['data'])
+        
         if 'loss_mode' in input and 'test' not in input:
+            # print(input.keys())
             if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
             elif 'sim' in input['loss_mode']:

@@ -295,6 +295,7 @@ class Client:
                 evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
                 logger.append(evaluation, 'train', n=len(input_['target']))
                 cfg['pred'] = False
+                # print(f'{torch.any(mask)}entered')
                 if torch.any(mask):
                     fix_dataset = copy.deepcopy(dataset)
                     fix_dataset.target = new_target.tolist()
@@ -310,7 +311,7 @@ class Client:
                         mix_dataset = None
                     return fix_dataset, mix_dataset,dataset
                 else:
-                    return None
+                    return None,None,dataset
 
         else:
             raise ValueError('Not valid client loss mode')
@@ -535,6 +536,7 @@ class Client:
                     if num_batches is not None and i == num_batches - 1:
                         break
         elif 'sim' in cfg['loss_mode']:
+            # print(cfg)
             _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
