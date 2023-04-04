@@ -222,6 +222,18 @@ class ResNet(nn.Module):
                         # epochl=input['epoch']
                         # print(f'{epochl} training with CE loss')
                         output['loss'] = loss_fn(output['target'], input['target'])
+                elif 'at' in input['loss_mode']:
+                    if input['epoch']==21 or input['epoch']==42 or input['epoch']==63 or input['epoch']==84 or 100<input['epoch']<=105:
+                        # epochl=input['epoch']
+                        # print(f'{epochl} training with CE loss')
+                        output['loss'] = loss_fn(output['target'], input['target'])
+                    else :
+                        # epochl=input['epoch']
+                        # print(f'{epochl} training with Sim loss')
+                        criterion = SimCLR_Loss(input['batch_size'])
+                        # output['classification_loss'] = loss_fn(output['target'], input['target'])
+                        output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
+                        output['loss'] = output['sim_loss']
                 else:    
                     if input['supervised_mode'] == True:
                         criterion = SimCLR_Loss(input['batch_size'])

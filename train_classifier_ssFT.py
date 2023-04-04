@@ -149,16 +149,29 @@ def make_client(model, data_split):
 
 def train_client(batchnorm_dataset, client_dataset, server, client, supervised_clients, optimizer, metric, logger, epoch):
     logger.safe(True)
-    if epoch <= cfg['switch_epoch']:
-        num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
-        client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
-        for i in range(num_active_clients):
-            client[client_id[i]].active = True
-    else:
-        num_active_clients = len(supervised_clients)
-        client_id = supervised_clients
-        for i in range(num_active_clients):
-            client[client_id[i]].active = True
+    if 'ft' in cfg['loss_mode']:
+        if epoch <= cfg['switch_epoch']:
+            num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
+            client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
+            for i in range(num_active_clients):
+                client[client_id[i]].active = True
+        else:
+            num_active_clients = len(supervised_clients)
+            client_id = supervised_clients
+            for i in range(num_active_clients):
+                client[client_id[i]].active = True
+    elif 'at' in cfg['loss_mode']:
+        if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
+            num_active_clients = len(supervised_clients)
+            client_id = supervised_clients
+            for i in range(num_active_clients):
+                client[client_id[i]].active = True
+        else:
+            num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
+            client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
+            for i in range(num_active_clients):
+                client[client_id[i]].active = True
+
     # server.distribute(client, batchnorm_dataset)
     print(f'traning the following clients{client_id}')
     server.distribute(client,batchnorm_dataset)

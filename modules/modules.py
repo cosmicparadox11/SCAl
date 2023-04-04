@@ -550,10 +550,17 @@ class Client:
             #     print(f'nmae{v} grad required{k.requires_grad}')
             # if self.supervised == False:
             #     model.linear.requires_grad_(False)
-            if epoch <= cfg['switch_epoch'] :
-                model.linear.requires_grad_(False)
-            elif epoch > cfg['switch_epoch']:
-                model.projection.requires_grad_(False)
+            if 'ft' in cfg['loss_mode']:
+                if epoch <= cfg['switch_epoch'] :
+                    model.linear.requires_grad_(False)
+                elif epoch > cfg['switch_epoch']:
+                    model.projection.requires_grad_(False)
+            elif 'at' in cfg['loss_mode']:
+                if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
+                    model.projection.requires_grad_(False)
+                else:
+                    model.linear.requires_grad_(False)
+                    
             # for v,k in model.named_parameters():
             #     print(f'nmae{v} grad required{k.requires_grad}')
             if cfg['client']['num_epochs'] == 1:
