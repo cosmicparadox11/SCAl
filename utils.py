@@ -160,7 +160,7 @@ def process_control():
         cfg['global'] = {}
         cfg['global']['batch_size'] = {'train': 250, 'test': 250}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
-        cfg['global']['num_epochs'] = 70
+        cfg['global']['num_epochs'] = 80
         cfg['global']['optimizer_name'] = 'SGD'
         cfg['global']['lr'] = 1
         cfg['global']['momentum'] = cfg['gm']
