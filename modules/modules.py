@@ -245,10 +245,11 @@ class Client:
                 output_, input_ = {}, {}
                 output_['target'] = torch.cat(output, dim=0)
                 input_['target'] = torch.cat(target, dim=0)
+                evaluation = metric.evaluate(['PAccuracy'], input_, output_)
                 output_['target'] = F.softmax(output_['target'], dim=-1)
                 new_target, mask = self.make_hard_pseudo_label(output_['target'])
                 output_['mask'] = mask
-                evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
+                evaluation = metric.evaluate(['MAccuracy', 'LabelRatio'], input_, output_)
                 logger.append(evaluation, 'train', n=len(input_['target']))
                 if torch.any(mask):
                     fix_dataset = copy.deepcopy(dataset)
@@ -550,16 +551,31 @@ class Client:
             #     print(f'nmae{v} grad required{k.requires_grad}')
             # if self.supervised == False:
             #     model.linear.requires_grad_(False)
-            if 'ft' in cfg['loss_mode']:
+            if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
                 if epoch <= cfg['switch_epoch'] :
                     model.linear.requires_grad_(False)
                 elif epoch > cfg['switch_epoch']:
+                    model.projection.requires_grad_(False)
+            elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
+                if epoch > cfg['switch_epoch'] :
+                    model.linear.requires_grad_(False)
+                elif epoch <= cfg['switch_epoch']:
                     model.projection.requires_grad_(False)
             elif 'at' in cfg['loss_mode']:
                 if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
                     model.projection.requires_grad_(False)
                 else:
                     model.linear.requires_grad_(False)
+            # if 'ft' in cfg['loss_mode']:
+            #     if epoch > cfg['switch_epoch'] :
+            #         model.linear.requires_grad_(False)
+            #     elif epoch <= cfg['switch_epoch']:
+            #         model.projection.requires_grad_(False)
+            # elif 'at' in cfg['loss_mode']:
+            #     if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
+            #         model.projection.requires_grad_(False)
+            #     else:
+            #         model.linear.requires_grad_(False)
                     
             # for v,k in model.named_parameters():
             #     print(f'nmae{v} grad required{k.requires_grad}')

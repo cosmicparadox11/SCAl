@@ -186,7 +186,7 @@ class ResNet(nn.Module):
     #     return output
     def forward(self, input):
         output = {}
-        if 'sim' in cfg['loss_mode']:
+        if 'sim' in cfg['loss_mode'] and 'test' not in input:
             if cfg['pred'] == True:
                 output['target'],_ = self.f(input['augw'])
             else:
@@ -200,7 +200,7 @@ class ResNet(nn.Module):
                 elif 'sim' in cfg['loss_mode'] and input['supervised_mode'] == True:
                     _,output['sim_vector_i'] = self.f(input['aug1'])
                     _,output['sim_vector_j'] = self.f(input['aug2'])
-                    output['target'],__ = self.f(input['data'])
+                    output['target'],__ = self.f(input['augw'])
         else:
             output['target'],_ = self.f(input['data'])
         # output['target']= self.f(input['data'])
@@ -210,7 +210,7 @@ class ResNet(nn.Module):
             if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
             elif 'sim' in input['loss_mode']:
-                if 'ft' in input['loss_mode']:
+                if 'ft' in input['loss_mode'] and 'bl' not in input['loss_mode']:
                     if input['epoch']<= cfg['switch_epoch']:
                         # epochl=input['epoch']
                         # print(f'{epochl} training with Sim loss')
@@ -219,6 +219,18 @@ class ResNet(nn.Module):
                         output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
                         output['loss'] = output['sim_loss']
                     elif input['epoch'] > cfg['switch_epoch']:
+                        # epochl=input['epoch']
+                        # print(f'{epochl} training with CE loss')
+                        output['loss'] = loss_fn(output['target'], input['target'])
+                elif 'ft' in input['loss_mode'] and 'bl'  in input['loss_mode']:
+                    if input['epoch'] > cfg['switch_epoch']:
+                        # epochl=input['epoch']
+                        # print(f'{epochl} training with Sim loss')
+                        criterion = SimCLR_Loss(input['batch_size'])
+                        # output['classification_loss'] = loss_fn(output['target'], input['target'])
+                        output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
+                        output['loss'] = output['sim_loss']
+                    elif input['epoch'] <= cfg['switch_epoch']:
                         # epochl=input['epoch']
                         # print(f'{epochl} training with CE loss')
                         output['loss'] = loss_fn(output['target'], input['target'])
