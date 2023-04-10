@@ -160,7 +160,7 @@ def process_control():
         cfg['global'] = {}
         cfg['global']['batch_size'] = {'train': 250, 'test': 250}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
-        cfg['global']['num_epochs'] = 150
+        cfg['global']['num_epochs'] = 250
         cfg['global']['optimizer_name'] = 'SGD'
         cfg['global']['lr'] = 1
         cfg['global']['momentum'] = cfg['gm']
@@ -263,8 +263,8 @@ def make_scheduler(optimizer, tag):
     return scheduler
 
 
-# def resume(model_tag, load_tag='checkpoint', verbose=True):
-def resume(model_tag, load_tag='best', verbose=True):
+def resume(model_tag, load_tag='checkpoint', verbose=True):
+# def resume(model_tag, load_tag='best', verbose=True):
     if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
         result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
     else:

@@ -39,12 +39,16 @@ def runExperiment():
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
     dataset = fetch_dataset(cfg['data_name'])
+    # print(len(dataset['test']))
     process_dataset(dataset)
     dataset['train'], _, supervised_idx = separate_dataset_su(dataset['train'])
-    data_loader = make_data_loader(dataset, cfg['model_name'])
+    # print(len(supervised_idx))
+    data_loader = make_data_loader(dataset, 'global')
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    optimizer = make_optimizer(model.parameters(), cfg['model_name'])
-    scheduler = make_scheduler(optimizer, cfg['model_name'])
+    # print(model)
+    # print(cfg['local'].keys())
+    optimizer = make_optimizer(model.parameters(), 'local')
+    scheduler = make_scheduler(optimizer, 'global')
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
@@ -61,7 +65,9 @@ def runExperiment():
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
     if cfg['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
+    cfg['model_name'] = 'global'
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
+        # cfg['model_name'] = 'local'
         logger.safe(True)
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
         test_model = make_batchnorm_stats(dataset['train'], model, cfg['model_name'])
@@ -85,11 +91,13 @@ def runExperiment():
 def train(data_loader, model, optimizer, metric, logger, epoch):
     model.train(True)
     start_time = time.time()
+    model.projection.requires_grad_(False)
     for i, input in enumerate(data_loader):
         input = collate(input)
         input_size = input['data'].size(0)
         input = to_device(input, cfg['device'])
         optimizer.zero_grad()
+        input['loss_mode'] = cfg['loss_mode']
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
         output['loss'].backward()
@@ -119,7 +127,11 @@ def test(data_loader, model, metric, logger, epoch):
             input = collate(input)
             input_size = input['data'].size(0)
             input = to_device(input, cfg['device'])
+            input['loss_mode'] = cfg['loss_mode']
+            input['supervised_mode'] = False
+            input['test'] = True
             output = model(input)
+            input['test'] = True
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(metric.metric_name['test'], input, output)
             logger.append(evaluation, 'test', input_size)

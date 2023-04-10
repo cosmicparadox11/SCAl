@@ -326,6 +326,7 @@ class Client:
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
+            model.projection.requires_grad_(False)
             # print(f'is client number {self.client_id} a supervised model={self.supervised}')
             # for v,k in model.named_parameters():
             #     print(v)

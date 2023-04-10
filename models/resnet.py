@@ -196,11 +196,13 @@ class ResNet(nn.Module):
                 if 'sim' in cfg['loss_mode'] and input['supervised_mode']!= True:
                     _,output['sim_vector_i'] = self.f(input['aug1'])
                     _,output['sim_vector_j'] = self.f(input['aug2'])
-                    output['target'],_ = self.f(input['data'])
+                    output['target'],_ = self.f(input['augw'])
                 elif 'sim' in cfg['loss_mode'] and input['supervised_mode'] == True:
                     _,output['sim_vector_i'] = self.f(input['aug1'])
                     _,output['sim_vector_j'] = self.f(input['aug2'])
                     output['target'],__ = self.f(input['augw'])
+        elif 'sup' in cfg['loss_mode'] and 'test' not in input:
+            output['target'],_ = self.f(input['augw'])
         else:
             output['target'],_ = self.f(input['data'])
         # output['target']= self.f(input['data'])

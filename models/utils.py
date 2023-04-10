@@ -83,7 +83,8 @@ class SimCLR_Loss(nn.Module):
     def forward(self, z_i, z_j):
 
         N = 2 * self.batch_size
-
+        z_i = F.normalize(z_i, p=2, dim=1)
+        z_j = F.normalize(z_j, p=2, dim=1)
         z = torch.cat((z_i, z_j), dim=0)
 
         sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
