@@ -28,7 +28,7 @@ def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name']]
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name'],cfg['data_mode']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
@@ -65,8 +65,10 @@ def runExperiment():
     #     raise ValueError('Not valid sbn')
     # print(len(batchnorm_dataset))
     batchnorm_dataset = client_dataset['train']
-    data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
-    # data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
+    if cfg['data_mode'] == 'old':
+        data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
+    elif cfg['data_mode'] == 'new':
+        data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
     if cfg['loss_mode'] != 'sup':
         metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
                          'test': ['Loss', 'Accuracy']})
@@ -95,6 +97,7 @@ def runExperiment():
         server = make_server(model)
         client = make_client(model, data_split)
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+    cfg['global']['num_epochs'] = cfg['cycles']   
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         train_client(batchnorm_dataset, client_dataset['train'], server, client, optimizer, metric, logger, epoch)
         # if 'ft' in cfg and cfg['ft'] == 0:

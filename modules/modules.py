@@ -27,6 +27,9 @@ class Server:
 
     def distribute(self, client, batchnorm_dataset=None):
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        # model = eval('models.{}()'.format(cfg['model_name']))
+        # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+        # model.to(cfg["device"])
         model.load_state_dict(self.model_state_dict,strict= False)
         # if batchnorm_dataset is not None:
         #     model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
@@ -38,6 +41,7 @@ class Server:
 
     def update(self, client):
         if 'fmatch' not in cfg['loss_mode']:
+            # print("entered")
             with torch.no_grad():
                 valid_client = [client[i] for i in range(len(client)) if client[i].active]
                 if len(valid_client) > 0:
@@ -48,13 +52,18 @@ class Server:
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     weight = weight / weight.sum()
+                    # print(model.buffers())
                     for k, v in model.named_parameters():
+                        # print(k)
                         parameter_type = k.split('.')[-1]
+                        # print(f'{k} with parameter type {parameter_type}')
                         if 'weight' in parameter_type or 'bias' in parameter_type:
                             tmp_v = v.data.new_zeros(v.size())
                             for m in range(len(valid_client)):
                                 tmp_v += weight[m] * valid_client[m].model_state_dict[k]
                             v.grad = (v.data - tmp_v).detach()
+                    # module = model.layer1[0].n1
+                    # print(list(module.named_buffers()))
                     global_optimizer.step()
                     self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
                     self.model_state_dict = save_model_state_dict(model.state_dict())
@@ -230,6 +239,9 @@ class Client:
             with torch.no_grad():
                 data_loader = make_data_loader({'train': dataset}, 'global', shuffle={'train': False})['train']
                 model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
+                # model = eval('models.{}()'.format(cfg['model_name']))
+                # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                # model.to(cfg["device"])
                 model.load_state_dict(self.model_state_dict,strict=False)
                 model.train(False)
                 output = []
@@ -271,6 +283,9 @@ class Client:
             with torch.no_grad():
                 data_loader = make_data_loader({'train': dataset}, 'global', shuffle={'train': False})['train']
                 model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
+                # model = eval('models.{}()'.format(cfg['model_name']))
+                # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                # model.to(cfg["device"])
                 model.load_state_dict(self.model_state_dict,strict=False)
                 model.train(False)
                 cfg['pred'] = True
@@ -321,6 +336,9 @@ class Client:
         if cfg['loss_mode'] == 'sup':
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            # model = eval('models.{}()'.format(cfg['model_name']))
+            # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+            # model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
@@ -354,6 +372,9 @@ class Client:
             _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            # model = eval('models.{}()'.format(cfg['model_name']))
+            # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+            # model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
@@ -530,6 +551,7 @@ class Client:
                     optimizer.zero_grad()
                     output = model(input)
                     # print(output.keys())
+                    output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
@@ -542,6 +564,9 @@ class Client:
             _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            # model = eval('models.{}()'.format(cfg['model_name']))
+            # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+            # model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
@@ -552,21 +577,36 @@ class Client:
             #     print(f'nmae{v} grad required{k.requires_grad}')
             # if self.supervised == False:
             #     model.linear.requires_grad_(False)
+            # if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
+            #     if epoch <= cfg['switch_epoch'] :
+            #         model.linear.requires_grad_(False)
+            #     elif epoch > cfg['switch_epoch']:
+            #         model.projection.requires_grad_(False)
+            # elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
+            #     if epoch > cfg['switch_epoch'] :
+            #         model.linear.requires_grad_(False)
+            #     elif epoch <= cfg['switch_epoch']:
+            #         model.projection.requires_grad_(False)
+            # elif 'at' in cfg['loss_mode']:
+            #     if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
+            #         model.projection.requires_grad_(False)
+            #     else:
+            #         model.linear.requires_grad_(False)
             if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
                 if epoch <= cfg['switch_epoch'] :
-                    model.linear.requires_grad_(False)
+                    model.module.linear.requires_grad_(False)
                 elif epoch > cfg['switch_epoch']:
-                    model.projection.requires_grad_(False)
+                    model.module.projection.requires_grad_(False)
             elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
                 if epoch > cfg['switch_epoch'] :
-                    model.linear.requires_grad_(False)
+                    model.module.linear.requires_grad_(False)
                 elif epoch <= cfg['switch_epoch']:
-                    model.projection.requires_grad_(False)
+                    model.module.projection.requires_grad_(False)
             elif 'at' in cfg['loss_mode']:
-                if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
-                    model.projection.requires_grad_(False)
+                if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
+                    model.module.projection.requires_grad_(False)
                 else:
-                    model.linear.requires_grad_(False)
+                    model.module.linear.requires_grad_(False)
             # if 'ft' in cfg['loss_mode']:
             #     if epoch > cfg['switch_epoch'] :
             #         model.linear.requires_grad_(False)
@@ -596,6 +636,7 @@ class Client:
                     optimizer.zero_grad()
                     output = model(input)
                     # print(output.keys())
+                    # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()

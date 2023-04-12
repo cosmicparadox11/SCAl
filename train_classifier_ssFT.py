@@ -28,7 +28,7 @@ def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name']]
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name'],cfg['data_mode']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
@@ -66,7 +66,11 @@ def runExperiment():
     # print(len(batchnorm_dataset))
     batchnorm_dataset = client_dataset['train']
     # data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
-    data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
+    # data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
+    if cfg['data_mode'] == 'old':
+        data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
+    elif cfg['data_mode'] == 'new':
+        data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
     if cfg['loss_mode'] != 'sup':
         metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
                          'test': ['Loss', 'Accuracy']})
@@ -78,6 +82,7 @@ def runExperiment():
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
+        # supervised_clients = [88, 20, 95, 18, 27, 80, 70, 39, 87, 36]
         if last_epoch > 1:
             data_split = result['data_split']
             # supervised_idx = result['supervised_idx']
@@ -161,7 +166,8 @@ def train_client(batchnorm_dataset, client_dataset, server, client, supervised_c
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
     elif 'at' in cfg['loss_mode']:
-        if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
+        cfg['srange'] = [11,26,37,52,63,78,90,105]
+        if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
             num_active_clients = len(supervised_clients)
             client_id = supervised_clients
             for i in range(num_active_clients):

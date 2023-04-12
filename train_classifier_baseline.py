@@ -28,7 +28,7 @@ def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name']]
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name'],cfg['data_mode']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
@@ -52,8 +52,12 @@ def runExperiment():
     # print(len(client_dataset['train'].data))
     #data_loader = make_data_loader(server_dataset, 'global')
     data_loader = make_data_loader(client_dataset, 'global')
-    # print(cfg)
+    # cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    # model = eval('models.{}()'.format(cfg['model_name']))
+    # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+    # model.to(cfg["device"])
+    # cfg['world_size']=2
     # print(model)
     optimizer = make_optimizer(model.parameters(), 'local')
     scheduler = make_scheduler(optimizer, 'global')
@@ -64,9 +68,15 @@ def runExperiment():
     # else:
     #     raise ValueError('Not valid sbn')
     # print(len(batchnorm_dataset))
+    for k,v in model.named_buffers():
+        print(k)
     batchnorm_dataset = client_dataset['train']
     # data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
-    data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
+    # data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
+    if cfg['data_mode'] == 'old':
+        data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
+    elif cfg['data_mode'] == 'new':
+        data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
     if cfg['loss_mode'] != 'sup':
         metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
                          'test': ['Loss', 'Accuracy']})

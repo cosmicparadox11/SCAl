@@ -66,12 +66,22 @@ def runExperiment():
     if cfg['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
     cfg['model_name'] = 'global'
+    # print(list(model.buffers()))
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         # cfg['model_name'] = 'local'
         logger.safe(True)
         train(data_loader['train'], model, optimizer, metric, logger, epoch)
+        # module = model.layer1[0].n1
+        # print(list(module.named_buffers()))
+        # print(list(model.buffers()))
         test_model = make_batchnorm_stats(dataset['train'], model, cfg['model_name'])
+        # print(list(model.buffers()))
+        # module = model.layer1[0].n1
+        # print(list(module.named_buffers()))
         test(data_loader['test'], test_model, metric, logger, epoch)
+        # print(list(model.buffers()))
+        # module = model.layer1[0].n1
+        # print(list(module.named_buffers()))
         scheduler.step()
         logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()

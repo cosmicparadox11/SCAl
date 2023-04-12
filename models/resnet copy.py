@@ -10,9 +10,9 @@ class Block(nn.Module):
 
     def __init__(self, in_planes, planes, stride):
         super(Block, self).__init__()
-        self.n1 = nn.GroupNorm(num_groups=2,num_channels=in_planes)
+        self.n1 = nn.BatchNorm2d(in_planes)
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.n2 = nn.GroupNorm(num_groups=2,num_channels=planes)
+        self.n2 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         if stride != 1 or in_planes != self.expansion * planes:
             self.shortcut = nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False)
@@ -109,7 +109,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, hidden_size[1], num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, hidden_size[2], num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, hidden_size[3], num_blocks[3], stride=2)
-        self.n4 = nn.GroupNorm(num_groups=2,num_channels=hidden_size[3] * block.expansion)
+        self.n4 = nn.BatchNorm2d(hidden_size[3] * block.expansion)
         self.linear = nn.Linear(hidden_size[3] * block.expansion, target_size)
         # self.projection = ProjectionHead(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion,sim_out)
         self.projection = nn.Sequential(nn.Linear(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion),
@@ -187,7 +187,7 @@ class ResNet(nn.Module):
     def forward(self, input):
         output = {}
         if 'sim' in cfg['loss_mode'] and 'test' not in input:
-            if cfg['pred'] == True or 'bl' in cfg['loss_mode']:
+            if cfg['pred'] == True:
                 output['target'],_ = self.f(input['augw'])
             else:
                 transform=SimDataset('CIFAR10')

@@ -160,19 +160,20 @@ def process_control():
         cfg['global'] = {}
         cfg['global']['batch_size'] = {'train': 250, 'test': 250}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
-        cfg['global']['num_epochs'] = 250
+        cfg['global']['num_epochs'] = 150
         cfg['global']['optimizer_name'] = 'SGD'
         cfg['global']['lr'] = 1
         cfg['global']['momentum'] = cfg['gm']
         cfg['global']['weight_decay'] = 0
         cfg['global']['nesterov'] = False
         cfg['global']['scheduler_name'] = 'CosineAnnealingLR'
+        # cfg['global']['scheduler_name'] = 'ExponentialLR'
         cfg['alpha'] = 0.75
     else:
         model_name = cfg['model_name']
         cfg[model_name]['shuffle'] = {'train': True, 'test': False}
         cfg[model_name]['optimizer_name'] = 'SGD'
-        cfg[model_name]['lr'] = 1e-1
+        cfg[model_name]['lr'] = 3e-1
         cfg[model_name]['momentum'] = 0.9
         cfg[model_name]['weight_decay'] = 5e-4
         cfg[model_name]['nesterov'] = True
