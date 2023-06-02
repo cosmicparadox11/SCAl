@@ -100,7 +100,7 @@ def runExperiment():
             logger = result['logger']
         else:
             server = make_server(model)
-            client = make_client(model, data_split)
+            client,supervised_clients = make_client(model, data_split)
             logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
     else:
         last_epoch = 1
@@ -132,8 +132,10 @@ def runExperiment():
         result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
                   'optimizer_state_dict': optimizer.state_dict(),
                   'scheduler_state_dict': scheduler.state_dict(),
-                  'data_split': data_split, 'logger': logger,'supervised_clients ':supervised_clients }
-        save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+                  'data_split': data_split, 'logger': logger,'supervised_clients':supervised_clients }
+        if epoch %10 == 0 :
+            save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
             metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),

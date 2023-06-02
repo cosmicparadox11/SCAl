@@ -153,7 +153,7 @@ def process_control():
         cfg['client']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][0])))
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
-        cfg['local']['lr'] = 9e-2
+        cfg['local']['lr'] = 3e-2
         cfg['local']['momentum'] = 0.9
         cfg['local']['weight_decay'] = 5e-4
         cfg['local']['nesterov'] = True
@@ -166,8 +166,9 @@ def process_control():
         cfg['global']['momentum'] = cfg['gm']
         cfg['global']['weight_decay'] = 0
         cfg['global']['nesterov'] = False
-        # cfg['global']['scheduler_name'] = 'CosineAnnealingLR'
-        cfg['global']['scheduler_name'] = 'ExponentialLR'
+        cfg['global']['scheduler_name'] = 'CosineAnnealingLR'
+        # cfg['global']['scheduler_name'] = 'ExponentialLR'
+        # cfg['global']['scheduler_name'] = 'StepLR'
         cfg['alpha'] = 0.75
     else:
         model_name = cfg['model_name']
@@ -244,7 +245,8 @@ def make_scheduler(optimizer, tag):
     if cfg[tag]['scheduler_name'] == 'None':
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
     elif cfg[tag]['scheduler_name'] == 'StepLR':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg[tag]['step_size'], gamma=cfg[tag]['factor'])
+        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg[tag]['step_size'], gamma=cfg[tag]['factor'])
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.99)
     elif cfg[tag]['scheduler_name'] == 'MultiStepLR':
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg[tag]['milestones'],
                                                    gamma=cfg[tag]['factor'])
@@ -285,3 +287,11 @@ def collate(input):
     for k in input:
         input[k] = torch.stack(input[k], 0)
     return input
+def save_img(image,save_path):
+
+    np_image=image.data.clone().cpu().numpy()
+    print(np.shape(np_image))
+    np_image=np.squeeze(np_image)
+    PIL_image = Image.fromarray(np_image,'L')
+
+    PIL_image.save(save_path)

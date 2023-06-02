@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import init_param, make_batchnorm, loss_fn , SimCLR_Loss
-from data import SimDataset
+from .utils import init_param, make_batchnorm, loss_fn ,info_nce_loss, SimCLR_Loss,elr_loss
+from utils import to_device, make_optimizer, collate, to_device
+from data import SimDataset 
+# import data.info_nce_loss as info_nce_loss
 from config import cfg
 
 class Block(nn.Module):
@@ -112,9 +114,9 @@ class ResNet(nn.Module):
         self.n4 = nn.GroupNorm(num_groups=2,num_channels=hidden_size[3] * block.expansion)
         self.linear = nn.Linear(hidden_size[3] * block.expansion, target_size)
         # self.projection = ProjectionHead(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion,sim_out)
-        self.projection = nn.Sequential(nn.Linear(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion),
-                                        nn.ReLU(),
-                                        nn.Linear(hidden_size[3] * block.expansion,sim_out))
+        # self.projection = nn.Sequential(nn.Linear(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion),
+        #                                 nn.ReLU(),
+        #                                 nn.Linear(hidden_size[3] * block.expansion,sim_out))
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
@@ -123,7 +125,19 @@ class ResNet(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def f(self, x):
+    # def f(self, x):
+    #     x = self.conv1(x)
+    #     x = self.layer1(x)
+    #     x = self.layer2(x)
+    #     x = self.layer3(x)
+    #     x = self.layer4(x)
+    #     x = F.relu(self.n4(x))
+    #     x = F.adaptive_avg_pool2d(x, 1)
+    #     x = x.view(x.size(0), -1)
+    #     z = self.projection(x)
+    #     x = self.linear(x)
+    #     return x , z
+    def f(self, x,apply_softmax=False):
         x = self.conv1(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -132,10 +146,13 @@ class ResNet(nn.Module):
         x = F.relu(self.n4(x))
         x = F.adaptive_avg_pool2d(x, 1)
         x = x.view(x.size(0), -1)
-        z = self.projection(x)
+        f = x
         x = self.linear(x)
-        return x , z
-
+        if apply_softmax:
+            x = torch.softmax(x, dim=1)
+        else:
+            pass
+        return f,x
     # def forward(self, input):
     #     output = {}
         # if 'sim' in cfg['loss_mode']:
@@ -188,28 +205,49 @@ class ResNet(nn.Module):
         output = {}
         if 'sim' in cfg['loss_mode'] and 'test' not in input:
             if cfg['pred'] == True or 'bl' in cfg['loss_mode']:
-                output['target'],_ = self.f(input['augw'])
+                _,output['target'] = self.f(input['augw'])
             else:
                 transform=SimDataset('CIFAR10')
                 input = transform(input)
                 # print(input.keys())
                 if 'sim' in cfg['loss_mode'] and input['supervised_mode']!= True:
+                    # input_ = torch.cat((input['aug1'],input['aug2']),dim = 0)
+                    # N = len(input['aug1'])
+                    # # print(N,len(input_))
+                    # _,output_ = self.f(input_)
+                    # output['sim_vector_i'] = output_[:N]
+                    # output['sim_vector_j'] = output_[N:]
                     _,output['sim_vector_i'] = self.f(input['aug1'])
                     _,output['sim_vector_j'] = self.f(input['aug2'])
                     output['target'],_ = self.f(input['augw'])
                 elif 'sim' in cfg['loss_mode'] and input['supervised_mode'] == True:
+                    # input_ = torch.cat((input['aug1'],input['aug2']),dim = 0)
+                    # N = len(input['aug1'])
+                    # # print(N,len(input_))
+                    # _,output_ = self.f(input_)
+                    # output['sim_vector_i'] = output_[:N]
+                    # output['sim_vector_j'] = output_[N:]
                     _,output['sim_vector_i'] = self.f(input['aug1'])
                     _,output['sim_vector_j'] = self.f(input['aug2'])
                     output['target'],__ = self.f(input['augw'])
         elif 'sup' in cfg['loss_mode'] and 'test' not in input:
-            output['target'],_ = self.f(input['augw'])
+            _,output['target'] = self.f(input['augw'])
+        elif 'fix' in cfg['loss_mode'] and 'test' not in input and cfg['pred'] == True:
+            _,output['target'] = self.f(input['augw'])
+        elif 'gen' in cfg['loss_mode']:
+            _,output['target'] = self.f(input)
+            return output['target'],None
+        elif 'train-server' in cfg['loss_mode']:
+            _,output['target']=self.f(input['data'])
+
         else:
-            output['target'],_ = self.f(input['data'])
+            _,output['target'] = self.f(input['data'])
         # output['target']= self.f(input['data'])
         
         if 'loss_mode' in input and 'test' not in input:
             # print(input.keys())
-            if input['loss_mode'] == 'sup':
+            if 'sup' in input['loss_mode']:
+                # print(input['target'])
                 output['loss'] = loss_fn(output['target'], input['target'])
             elif 'sim' in input['loss_mode']:
                 if 'ft' in input['loss_mode'] and 'bl' not in input['loss_mode']:
@@ -220,6 +258,7 @@ class ResNet(nn.Module):
                         # output['classification_loss'] = loss_fn(output['target'], input['target'])
                         output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
                         output['loss'] = output['sim_loss']
+                        # output['loss'] = info_nce_loss(input['batch_size'],input_)
                     elif input['epoch'] > cfg['switch_epoch']:
                         # epochl=input['epoch']
                         # print(f'{epochl} training with CE loss')
@@ -260,14 +299,43 @@ class ResNet(nn.Module):
                         output['sim_loss'] =  criterion(output['sim_vector_i'],output['sim_vector_j'])
                         output['loss'] = output['sim_loss']
             elif input['loss_mode'] == 'fix':
-                aug_output = self.f(input['aug'])
+                # aug_output = self.f(input['aug'])
+                aug_output,_ = self.f(input['augs'])
+                print(type(aug_output))
                 output['loss'] = loss_fn(aug_output, input['target'].detach())
-            elif input['loss_mode'] == 'fix-mix':
-                aug_output = self.f(input['aug'])
-                output['loss'] = loss_fn(aug_output, input['target'].detach())
-                mix_output = self.f(input['mix_data'])
-                output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][:, 0].detach()) + (
-                        1 - input['lam']) * loss_fn(mix_output, input['mix_target'][:, 1].detach())
+            elif 'bmd' in input['loss_mode']:
+                # print(input['augw'])
+                # print(input.keys())
+                f,x =self.f(input['augw'])
+                return f,torch.softmax(x,dim=1)
+                
+            elif input['loss_mode'] == 'fix-mix' and 'kl_loss' not in input:
+                _,aug_output = self.f(input['aug'])
+                _,target = self.f(input['data'])
+                # print((input['aug'].shape)[0])
+                # print(input['id'].tolist())
+                # elr_loss_fn = elr_loss(500)
+                # output['loss'] = loss_fn(aug_output, input['target'].detach())
+                # print(f'input target')
+                # print(input['target'])
+                # output['loss']  = elr_loss_fn(input['id'].detach().tolist(),aug_output, input['target'].detach())
+        
+                _,mix_output = self.f(input['mix_data'])
+                # print(mix_output)
+                return aug_output,mix_output,target
+                # if 'ci_data' in input:
+                #     # print('entering ci')
+                #     _,ci_output = self.f(input['ci_data'])
+                #     output['loss'] += loss_fn(ci_output,input['ci_target'].detach())
+                # # output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][:, 0].detach()) + (
+                # #         1 - input['lam']) * loss_fn(mix_output, input['mix_target'][:, 1].detach())
+                # output['loss'] += input['lam'] * elr_loss_fn(input['id'].detach(),mix_output, input['mix_target'][:, 0].detach()) + (
+                #         1 - input['lam']) * elr_loss_fn(input['id'].detach(),mix_output, input['mix_target'][:, 1].detach())
+            elif input['loss_mode'] == 'fix-mix' and 'kl_loss' in input:
+                _,aug_output = self.f(input['aug'])
+                return aug_output
+            elif input['loss_mode'] == 'train-server':
+                output['loss'] = loss_fn(output['target'], input['target'])
 
         else:
             if not torch.any(input['target'] == -1):

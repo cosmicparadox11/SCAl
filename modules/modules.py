@@ -9,13 +9,17 @@ import models
 from itertools import compress
 from config import cfg
 from data import make_data_loader, make_batchnorm_stats, FixTransform, MixDataset
+from .utils import init_param, make_batchnorm, loss_fn ,info_nce_loss, SimCLR_Loss,elr_loss
 from utils import to_device, make_optimizer, collate, to_device
 from metrics import Accuracy
-
+from net_utils import set_random_seed
+from net_utils import init_multi_cent_psd_label
+from net_utils import EMA_update_multi_feat_cent_with_feat_simi
 
 class Server:
     def __init__(self, model):
         self.model_state_dict = save_model_state_dict(model.state_dict())
+        # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         if 'fmatch' in cfg['loss_mode']:
             optimizer = make_optimizer(model.make_sigma_parameters(), 'local')
             global_optimizer = make_optimizer(model.make_phi_parameters(), 'global')
@@ -26,33 +30,61 @@ class Server:
         self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
 
     def distribute(self, client, batchnorm_dataset=None):
-        model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-        # model = eval('models.{}()'.format(cfg['model_name']))
-        # model = torch.nn.DataParallel(model,device_ids = [0, 1])
-        # model.to(cfg["device"])
+        # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        if cfg['world_size']==1:
+            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        elif cfg['world_size']>1:
+            cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = eval('models.{}()'.format(cfg['model_name']))
+            model = torch.nn.DataParallel(model,device_ids = [0, 1])
+            model.to(cfg["device"])
         model.load_state_dict(self.model_state_dict,strict= False)
         # if batchnorm_dataset is not None:
         #     model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
         model_state_dict = save_model_state_dict(model.state_dict())
+        # model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         for m in range(len(client)):
             if client[m].active:
                 client[m].model_state_dict = copy.deepcopy(model_state_dict)
         return
-
+    def distribute_fix_model(self, client, batchnorm_dataset=None):
+        # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        if cfg['world_size']==1:
+            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        elif cfg['world_size']>1:
+            cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = eval('models.{}()'.format(cfg['model_name']))
+            model = torch.nn.DataParallel(model,device_ids = [0, 1])
+            model.to(cfg["device"])
+        model.load_state_dict(self.model_state_dict,strict= False)
+        # if batchnorm_dataset is not None:
+        #     model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
+        model_state_dict = save_model_state_dict(model.state_dict())
+        # model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
+        for m in range(len(client)):
+            
+            client[m].fix_model_state_dict = copy.deepcopy(model_state_dict)
+        return
     def update(self, client):
         if 'fmatch' not in cfg['loss_mode']:
-            # print("entered")
             with torch.no_grad():
                 valid_client = [client[i] for i in range(len(client)) if client[i].active]
                 if len(valid_client) > 0:
-                    model = eval('models.{}()'.format(cfg['model_name']))
+                    # model = eval('models.{}()'.format(cfg['model_name']))
+                    if cfg['world_size']==1:
+                        model = eval('models.{}()'.format(cfg['model_name']))
+                    elif cfg['world_size']>1:
+                        cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                        model = eval('models.{}()'.format(cfg['model_name']))
+                        model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                        model.to(cfg["device"])
+                    # model.load_state_dict(self.model_state_dict)
                     model.load_state_dict(self.model_state_dict)
                     global_optimizer = make_optimizer(model.parameters(), 'global')
                     global_optimizer.load_state_dict(self.global_optimizer_state_dict)
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     weight = weight / weight.sum()
-                    # print(model.buffers())
                     for k, v in model.named_parameters():
                         # print(k)
                         parameter_type = k.split('.')[-1]
@@ -60,13 +92,17 @@ class Server:
                         if 'weight' in parameter_type or 'bias' in parameter_type:
                             tmp_v = v.data.new_zeros(v.size())
                             for m in range(len(valid_client)):
-                                tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+                                if cfg['world_size']==1:
+                                    tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+                                elif  cfg['world_size']>1:
+                                    tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
                             v.grad = (v.data - tmp_v).detach()
                     # module = model.layer1[0].n1
                     # print(list(module.named_buffers()))
                     global_optimizer.step()
                     self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
                     self.model_state_dict = save_model_state_dict(model.state_dict())
+                    # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         elif 'fmatch' in cfg['loss_mode']:
             with torch.no_grad():
                 valid_client = [client[i] for i in range(len(client)) if client[i].active]
@@ -87,7 +123,8 @@ class Server:
                             v.grad = (v.data - tmp_v).detach()
                     global_optimizer.step()
                     self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
-                    self.model_state_dict = save_model_state_dict(model.state_dict())
+                    # self.model_state_dict = save_model_state_dict(model.state_dict())
+                    self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         else:
             raise ValueError('Not valid loss mode')
         for i in range(len(client)):
@@ -159,6 +196,10 @@ class Server:
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
+            if cfg['world_size']==1:
+                model.projection.requires_grad_(False)
+            if cfg['world_size']>1:
+                model.module.projection.requires_grad_(False)
             if cfg['server']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][1])))
             else:
@@ -193,6 +234,7 @@ class Server:
                 for i, input in enumerate(data_loader):
                     input = collate(input)
                     input_size = input['data'].size(0)
+                    input['loss_mode'] = cfg['loss_mode']
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
                     output = model(input)
@@ -216,76 +258,87 @@ class Client:
     def __init__(self, client_id, model, data_split):
         self.client_id = client_id
         self.data_split = data_split
+        # print(len(data_split['train']))
         self.model_state_dict = save_model_state_dict(model.state_dict())
+        # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         if 'fmatch' in cfg['loss_mode']:
             optimizer = make_optimizer(model.make_phi_parameters(), 'local')
         else:
             optimizer = make_optimizer(model.parameters(), 'local')
+        if cfg['kl_loss'] ==1:
+            self.fix_model_state_dict = save_model_state_dict(model.state_dict())
+            self.fix_model_state_dict = save_model_state_dict(model.state_dict())
+        #     kl_optimizer = make_optimizer(model.parameters(), 'local')
+        #     self.kl_optimizer_state_dict = save_optimizer_state_dict(kl_optimizer.state_dict())
         self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
         self.active = False
         self.supervised= False
         self.beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
         self.verbose = cfg['verbose']
-
+        self.EL_loss = elr_loss(500)
     def make_hard_pseudo_label(self, soft_pseudo_label):
         max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
         mask = max_p.ge(cfg['threshold'])
         return hard_pseudo_label, mask
 
     def make_dataset(self, dataset, metric, logger):
-        if 'sup' in cfg['loss_mode']:# or 'sim' in cfg['loss_mode']:
-            return dataset
-        elif 'fix' in cfg['loss_mode']:
-            with torch.no_grad():
-                data_loader = make_data_loader({'train': dataset}, 'global', shuffle={'train': False})['train']
-                model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
-                # model = eval('models.{}()'.format(cfg['model_name']))
-                # model = torch.nn.DataParallel(model,device_ids = [0, 1])
-                # model.to(cfg["device"])
-                model.load_state_dict(self.model_state_dict,strict=False)
-                model.train(False)
-                output = []
-                target = []
-                for i, input in enumerate(data_loader):
-                    input = collate(input)
-                    input = to_device(input, cfg['device'])
-                    output_ = model(input)
-                    output_i = output_['target']
-                    target_i = input['target']
-                    output.append(output_i.cpu())
-                    target.append(target_i.cpu())
-                output_, input_ = {}, {}
-                output_['target'] = torch.cat(output, dim=0)
-                input_['target'] = torch.cat(target, dim=0)
-                evaluation = metric.evaluate(['PAccuracy'], input_, output_)
-                output_['target'] = F.softmax(output_['target'], dim=-1)
-                new_target, mask = self.make_hard_pseudo_label(output_['target'])
-                output_['mask'] = mask
-                evaluation = metric.evaluate(['MAccuracy', 'LabelRatio'], input_, output_)
-                logger.append(evaluation, 'train', n=len(input_['target']))
-                if torch.any(mask):
-                    fix_dataset = copy.deepcopy(dataset)
-                    fix_dataset.target = new_target.tolist()
-                    mask = mask.tolist()
-                    fix_dataset.data = list(compress(fix_dataset.data, mask))
-                    fix_dataset.target = list(compress(fix_dataset.target, mask))
-                    fix_dataset.other = {'id': list(range(len(fix_dataset.data)))}
-                    if 'mix' in cfg['loss_mode']:
-                        mix_dataset = copy.deepcopy(dataset)
-                        mix_dataset.target = new_target.tolist()
-                        mix_dataset = MixDataset(len(fix_dataset), mix_dataset)
-                    else:
-                        mix_dataset = None
-                    return fix_dataset, mix_dataset
-                else:
-                    return None
+        if 'sup' in cfg['loss_mode'] or 'bmd' in cfg['loss_mode']:# or 'sim' in cfg['loss_mode']:
+            return None,None,dataset
+        # elif 'fix' in cfg['loss_mode']:
+        #     with torch.no_grad():
+        #         data_loader = make_data_loader({'train': dataset}, 'global', shuffle={'train': False})['train']
+        #         model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
+        #         # model = eval('models.{}()'.format(cfg['model_name']))
+        #         # model = torch.nn.DataParallel(model,device_ids = [0, 1])
+        #         # model.to(cfg["device"])
+        #         model.load_state_dict(self.model_state_dict,strict=False)
+        #         model.train(False)
+        #         output = []
+        #         target = []
+        #         for i, input in enumerate(data_loader):
+        #             input = collate(input)
+        #             input = to_device(input, cfg['device'])
+        #             output_ = model(input)
+        #             output_i = output_['target']
+        #             target_i = input['target']
+        #             output.append(output_i.cpu())
+        #             target.append(target_i.cpu())
+        #         output_, input_ = {}, {}
+        #         output_['target'] = torch.cat(output, dim=0)
+        #         input_['target'] = torch.cat(target, dim=0)
+        #         evaluation = metric.evaluate(['PAccuracy'], input_, output_)
+        #         output_['target'] = F.softmax(output_['target'], dim=-1)
+        #         new_target, mask = self.make_hard_pseudo_label(output_['target'])
+        #         output_['mask'] = mask
+        #         evaluation = metric.evaluate(['MAccuracy', 'LabelRatio'], input_, output_)
+        #         logger.append(evaluation, 'train', n=len(input_['target']))
+        #         if torch.any(mask):
+        #             fix_dataset = copy.deepcopy(dataset)
+        #             fix_dataset.target = new_target.tolist()
+        #             mask = mask.tolist()
+        #             fix_dataset.data = list(compress(fix_dataset.data, mask))
+        #             fix_dataset.target = list(compress(fix_dataset.target, mask))
+        #             fix_dataset.other = {'id': list(range(len(fix_dataset.data)))}
+        #             if 'mix' in cfg['loss_mode']:
+        #                 mix_dataset = copy.deepcopy(dataset)
+        #                 mix_dataset.target = new_target.tolist()
+        #                 mix_dataset = MixDataset(len(fix_dataset), mix_dataset)
+        #             else:
+        #                 mix_dataset = None
+        #             return fix_dataset, mix_dataset
+        #         else:
+        #             return None
         elif 'sim' in cfg['loss_mode']:
             with torch.no_grad():
                 data_loader = make_data_loader({'train': dataset}, 'global', shuffle={'train': False})['train']
-                model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
-                # model = eval('models.{}()'.format(cfg['model_name']))
-                # model = torch.nn.DataParallel(model,device_ids = [0, 1])
-                # model.to(cfg["device"])
+                # model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
+                if cfg['world_size']==1:
+                    model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+                elif cfg['world_size']>1:
+                    cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                    model = eval('models.{}()'.format(cfg['model_name']))
+                    model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                    model.to(cfg["device"])
                 model.load_state_dict(self.model_state_dict,strict=False)
                 model.train(False)
                 cfg['pred'] = True
@@ -328,26 +381,82 @@ class Client:
                     return fix_dataset, mix_dataset,dataset
                 else:
                     return None,None,dataset
-
+        elif 'fix' in cfg['loss_mode']:
+            with torch.no_grad():
+                data_loader = make_data_loader({'train': dataset}, 'global', shuffle={'train': False})['train']
+                # model = eval('models.{}(track=True).to(cfg["device"])'.format(cfg['model_name']))
+                if cfg['world_size']==1:
+                    model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+                elif cfg['world_size']>1:
+                    cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                    model = eval('models.{}()'.format(cfg['model_name']))
+                    model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                    model.to(cfg["device"])
+                model.load_state_dict(self.model_state_dict,strict=False)
+                model.train(False)
+                cfg['pred'] = True
+                output = []
+                target = []
+                for i, input in enumerate(data_loader):
+                    input = collate(input)
+                    # input['loss_mode'] = cfg['loss_mode']
+                    input = to_device(input, cfg['device'])
+                    # input['supervised_mode'] = self.supervised
+                    # input['batch_size'] = cfg['client']['batch_size']['train']
+                    output_ = model(input)
+                    output_i = output_['target']
+                    target_i = input['target']
+                    output.append(output_i.cpu())
+                    target.append(target_i.cpu())
+                output_, input_ = {}, {}
+                output_['target'] = torch.cat(output, dim=0)
+                input_['target'] = torch.cat(target, dim=0)
+                output_['target'] = F.softmax(output_['target'], dim=-1)
+                new_target, mask = self.make_hard_pseudo_label(output_['target'])
+                output_['mask'] = mask
+                evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
+                logger.append(evaluation, 'train', n=len(input_['target']))
+                cfg['pred'] = False
+                # print(f'{torch.any(mask)}entered')
+                if torch.any(mask):
+                    fix_dataset = copy.deepcopy(dataset)
+                    fix_dataset.target = new_target.tolist()
+                    mask = mask.tolist()
+                    fix_dataset.data = list(compress(fix_dataset.data, mask))
+                    fix_dataset.target = list(compress(fix_dataset.target, mask))
+                    fix_dataset.other = {'id': list(range(len(fix_dataset.data)))}
+                    if 'mix' in cfg['loss_mode']:
+                        mix_dataset = copy.deepcopy(dataset)
+                        mix_dataset.target = new_target.tolist()
+                        mix_dataset = MixDataset(len(fix_dataset), mix_dataset)
+                    else:
+                        mix_dataset = None
+                    return fix_dataset, mix_dataset,dataset
+                else:
+                    return None,None,dataset
         else:
             raise ValueError('Not valid client loss mode')
 
     def train(self, dataset, lr, metric, logger):
         if cfg['loss_mode'] == 'sup':
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
-            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-            # model = eval('models.{}()'.format(cfg['model_name']))
-            # model = torch.nn.DataParallel(model,device_ids = [0, 1])
-            # model.to(cfg["device"])
+            # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            if cfg['world_size']==1:
+                model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            elif cfg['world_size']>1:
+                cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model = eval('models.{}()'.format(cfg['model_name']))
+                model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
-            model.projection.requires_grad_(False)
-            # print(f'is client number {self.client_id} a supervised model={self.supervised}')
-            # for v,k in model.named_parameters():
-            #     print(v)
+            # if cfg['world_size']==1:
+            #     model.projection.requires_grad_(False)
+            # if cfg['world_size']>1:
+            #     model.module.projection.requires_grad_(False)
             if cfg['client']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
             else:
@@ -360,7 +469,7 @@ class Client:
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
                     output = model(input)
-                    # print(output.keys())
+                    output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
@@ -371,21 +480,24 @@ class Client:
         elif 'sim' in cfg['loss_mode']:
             _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
-            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-            # model = eval('models.{}()'.format(cfg['model_name']))
-            # model = torch.nn.DataParallel(model,device_ids = [0, 1])
-            # model.to(cfg["device"])
+            # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            if cfg['world_size']==1:
+                model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            elif cfg['world_size']>1:
+                cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model = eval('models.{}()'.format(cfg['model_name']))
+                model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
-            # for v,k in model.named_parameters():
-            #     print(f'nmae{v} grad required{k.requires_grad}')
-            if self.supervised == False:
-                model.linear.requires_grad_(False)
-            # for v,k in model.named_parameters():
-            #     print(f'nmae{v} grad required{k.requires_grad}')
+            if cfg['world_size']==1:
+                if self.supervised == False:
+                    model.linear.requires_grad_(False)
+            elif cfg['world_size']>1:
+                model.module.linear.requires_grad_(False)
             if cfg['client']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
             else:
@@ -403,6 +515,7 @@ class Client:
                     # print(type(input['data']))
                     output = model(input)
                     # print(output.keys())
+                    output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
@@ -526,18 +639,31 @@ class Client:
         self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
         self.model_state_dict = save_model_state_dict(model.state_dict())
         return
-    def trainntune(self, dataset, lr, metric, logger,epoch):
-        if cfg['loss_mode'] == 'sup':
+    def trainntune(self, dataset, lr, metric, logger,epoch,CI_dataset=None):
+        
+        if 'sup' in cfg['loss_mode']:
+            # print(cfg['loss_mode'])
+            # print('sup' in cfg['loss_mode'])
+            _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
-            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            if cfg['world_size']==1:
+                model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            elif cfg['world_size']>1:
+                cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model = eval('models.{}()'.format(cfg['model_name']))
+                model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
             model.train(True)
-            # print(f'is client number {self.client_id} a supervised model={self.supervised}')
-            # for v,k in model.named_parameters():
-            #     print(v)
+            # if cfg['world_size']==1:
+            #     model.projection.requires_grad_(False)
+            # if cfg['world_size']>1:
+            #     model.module.projection.requires_grad_(False)
+                
             if cfg['client']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
             else:
@@ -555,18 +681,22 @@ class Client:
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                    # evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
                     logger.append(evaluation, 'train', n=input_size)
                     if num_batches is not None and i == num_batches - 1:
                         break
         elif 'sim' in cfg['loss_mode']:
-            # print(cfg)
             _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
-            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-            # model = eval('models.{}()'.format(cfg['model_name']))
-            # model = torch.nn.DataParallel(model,device_ids = [0, 1])
-            # model.to(cfg["device"])
+            # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            if cfg['world_size']==1:
+                model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            elif cfg['world_size']>1:
+                cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model = eval('models.{}()'.format(cfg['model_name']))
+                model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
@@ -577,36 +707,38 @@ class Client:
             #     print(f'nmae{v} grad required{k.requires_grad}')
             # if self.supervised == False:
             #     model.linear.requires_grad_(False)
-            # if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
-            #     if epoch <= cfg['switch_epoch'] :
-            #         model.linear.requires_grad_(False)
-            #     elif epoch > cfg['switch_epoch']:
-            #         model.projection.requires_grad_(False)
-            # elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
-            #     if epoch > cfg['switch_epoch'] :
-            #         model.linear.requires_grad_(False)
-            #     elif epoch <= cfg['switch_epoch']:
-            #         model.projection.requires_grad_(False)
-            # elif 'at' in cfg['loss_mode']:
-            #     if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
-            #         model.projection.requires_grad_(False)
-            #     else:
-            #         model.linear.requires_grad_(False)
-            if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
-                if epoch <= cfg['switch_epoch'] :
-                    model.module.linear.requires_grad_(False)
-                elif epoch > cfg['switch_epoch']:
-                    model.module.projection.requires_grad_(False)
-            elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
-                if epoch > cfg['switch_epoch'] :
-                    model.module.linear.requires_grad_(False)
-                elif epoch <= cfg['switch_epoch']:
-                    model.module.projection.requires_grad_(False)
-            elif 'at' in cfg['loss_mode']:
-                if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
-                    model.module.projection.requires_grad_(False)
-                else:
-                    model.module.linear.requires_grad_(False)
+            if cfg['world_size']==1:
+                if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
+                    if epoch <= cfg['switch_epoch'] :
+                        model.linear.requires_grad_(False)
+                    elif epoch > cfg['switch_epoch']:
+                        model.projection.requires_grad_(False)
+                elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
+                    if epoch > cfg['switch_epoch'] :
+                        model.linear.requires_grad_(False)
+                    elif epoch <= cfg['switch_epoch']:
+                        model.projection.requires_grad_(False)
+                elif 'at' in cfg['loss_mode']:
+                    if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
+                        model.projection.requires_grad_(False)
+                    else:
+                        model.linear.requires_grad_(False)
+            elif cfg['world_size']>1:
+                if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
+                    if epoch <= cfg['switch_epoch'] :
+                        model.module.linear.requires_grad_(False)
+                    elif epoch > cfg['switch_epoch']:
+                        model.module.projection.requires_grad_(False)
+                elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
+                    if epoch > cfg['switch_epoch'] :
+                        model.module.linear.requires_grad_(False)
+                    elif epoch <= cfg['switch_epoch']:
+                        model.module.projection.requires_grad_(False)
+                elif 'at' in cfg['loss_mode']:
+                    if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
+                        model.module.projection.requires_grad_(False)
+                    else:
+                        model.module.linear.requires_grad_(False)
             # if 'ft' in cfg['loss_mode']:
             #     if epoch > cfg['switch_epoch'] :
             #         model.linear.requires_grad_(False)
@@ -636,7 +768,7 @@ class Client:
                     optimizer.zero_grad()
                     output = model(input)
                     # print(output.keys())
-                    # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+                    output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
@@ -645,12 +777,510 @@ class Client:
                     logger.append(evaluation, 'train', n=input_size)
                     if num_batches is not None and i == num_batches - 1:
                         break
+        # elif 'fix' in cfg['loss_mode'] and 'mix' not in cfg['loss_mode']:
+        #     # _,_,dataset = dataset
+        #     # data_loader = make_data_loader({'train': dataset}, 'client')['train']
+        #     fix_dataset, _ ,_ = dataset
+        #     fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
+        #     # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        #     if cfg['world_size']==1:
+        #         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        #     elif cfg['world_size']>1:
+        #         cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #         model = eval('models.{}()'.format(cfg['model_name']))
+        #         model = torch.nn.DataParallel(model,device_ids = [0, 1])
+        #         model.to(cfg["device"])
+        #     model.load_state_dict(self.model_state_dict, strict=False)
+        #     self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+        #     optimizer = make_optimizer(model.parameters(), 'local')
+        #     optimizer.load_state_dict(self.optimizer_state_dict)
+        #     model.train(True)
+        #     if cfg['world_size']==1:
+        #         model.projection.requires_grad_(False)
+        #     if cfg['world_size']>1:
+        #         model.module.projection.requires_grad_(False)
+        #     g_epoch = epoch
+        #     # for v,k in model.named_parameters():
+        #     #     print(f'nmae{v} grad required{k.requires_grad}')
+        #     # if self.supervised == False:
+        #     #     model.linear.requires_grad_(False)
+        #     if cfg['world_size']==1:
+        #         if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
+        #             if epoch <= cfg['switch_epoch'] :
+        #                 model.linear.requires_grad_(False)
+        #             elif epoch > cfg['switch_epoch']:
+        #                 model.projection.requires_grad_(False)
+        #         elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
+        #             if epoch > cfg['switch_epoch'] :
+        #                 model.linear.requires_grad_(False)
+        #             elif epoch <= cfg['switch_epoch']:
+        #                 model.projection.requires_grad_(False)
+        #         elif 'at' in cfg['loss_mode']:
+        #             if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
+        #                 model.projection.requires_grad_(False)
+        #             else:
+        #                 model.linear.requires_grad_(False)
+        #     elif cfg['world_size']>1:
+        #         if 'ft' in cfg['loss_mode'] and 'bl' not in cfg['loss_mode']:
+        #             if epoch <= cfg['switch_epoch'] :
+        #                 model.module.linear.requires_grad_(False)
+        #             elif epoch > cfg['switch_epoch']:
+        #                 model.module.projection.requires_grad_(False)
+        #         elif 'ft' in cfg['loss_mode'] and 'bl'  in cfg['loss_mode']:
+        #             if epoch > cfg['switch_epoch'] :
+        #                 model.module.linear.requires_grad_(False)
+        #             elif epoch <= cfg['switch_epoch']:
+        #                 model.module.projection.requires_grad_(False)
+        #         elif 'at' in cfg['loss_mode']:
+        #             if cfg['srange'][0]<=epoch<=cfg['srange'][1] or cfg['srange'][2]<=epoch<=cfg['srange'][3] or cfg['srange'][4]<=epoch<=cfg['srange'][5] or cfg['srange'][6]<=epoch<=cfg['srange'][7]:
+        #                 model.module.projection.requires_grad_(False)
+        #             else:
+        #                 model.module.linear.requires_grad_(False)
+        #     # if 'ft' in cfg['loss_mode']:
+        #     #     if epoch > cfg['switch_epoch'] :
+        #     #         model.linear.requires_grad_(False)
+        #     #     elif epoch <= cfg['switch_epoch']:
+        #     #         model.projection.requires_grad_(False)
+        #     # elif 'at' in cfg['loss_mode']:
+        #     #     if epoch==21 or epoch==42 or epoch==63 or epoch==84 or 100<epoch<=105:
+        #     #         model.projection.requires_grad_(False)
+        #     #     else:
+        #     #         model.linear.requires_grad_(False)
+                    
+        #     # for v,k in model.named_parameters():
+        #     #     print(f'nmae{v} grad required{k.requires_grad}')
+        #     if cfg['client']['num_epochs'] == 1:
+        #         num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
+        #     else:
+        #         num_batches = None
+        #     for epoch in range(1, cfg['client']['num_epochs'] + 1):
+        #         for i, input in enumerate(fix_data_loader):
+        #             input = collate(input)
+        #             input_size = input['data'].size(0)
+        #             input['loss_mode'] = cfg['loss_mode']
+        #             input = to_device(input, cfg['device'])
+        #             input['supervised_mode'] = self.supervised
+        #             input['batch_size'] = cfg['client']['batch_size']['train']
+        #             input['epoch'] = g_epoch
+        #             optimizer.zero_grad()
+        #             output = model(input)
+        #             # print(output.keys())
+        #             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+        #             output['loss'].backward()
+        #             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        #             optimizer.step()
+        #             # evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+        #             evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+        #             logger.append(evaluation, 'train', n=input_size)
+        #             if num_batches is not None and i == num_batches - 1:
+        #                 break
+        # elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and CI_dataset is not None:
+        #     fix_dataset, mix_dataset,_ = dataset
+        #     fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
+        #     mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
+        #     # print(mix_data_loader)
+        #     ci_data_loader = make_data_loader({'train':CI_dataset},'client')['train']
+        #     # print(ci_data_loader)
+        #     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        #     model.load_state_dict(self.model_state_dict, strict=False)
+        #     self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+        #     optimizer = make_optimizer(model.parameters(), 'local')
+        #     optimizer.load_state_dict(self.optimizer_state_dict)
+        #     model.train(True)
+        #     if cfg['world_size']==1:
+        #         model.projection.requires_grad_(False)
+        #     if cfg['world_size']>1:
+        #         model.module.projection.requires_grad_(False)
+        #     if cfg['client']['num_epochs'] == 1:
+        #         num_batches = int(np.ceil(len(fix_data_loader) * float(cfg['local_epoch'][0])))
+        #     else:
+        #         num_batches = None
+            
+        #     for epoch in range(1, cfg['client']['num_epochs'] + 1):
+        #         for i, (fix_input,mix_input,ci_input) in enumerate(zip(fix_data_loader, mix_data_loader,ci_data_loader)):
+        #             # input = {'data': fix_input['aug'], 'target': fix_input['target'], 'aug': fix_input['aug'],
+        #             #          'mix_data': mix_input['aug'], 'mix_target': mix_input['target']}
+        #             # input = {'data': fix_input['data'], 'augw':fix_input['augw'], 'target': fix_input['target'], 'augs': fix_input['augs'],
+        #             #          'mix_data': mix_input['augw'], 'mix_target': mix_input['target']}
+        #             input = {'data': fix_input['augw'], 'target': fix_input['target'], 'aug': fix_input['augs'],
+        #                     'mix_data': mix_input['augs'], 'mix_target': mix_input['target'],'ci_data':ci_input['data'],'ci_target':ci_input['target']}
+                    
+        #             input = collate(input)
+        #             # print(len(ci_input['data']))
+        #             input_size = input['data'].size(0)
+        #             input['lam'] = self.beta.sample()[0]
+        #             input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
+        #             input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
+        #             input['loss_mode'] = cfg['loss_mode']
+        #             input = to_device(input, cfg['device'])
+        #             optimizer.zero_grad()
+        #             aug_output,mix_output = model(input)
+        #             output['loss']  = self.EL_loss(input['id'].detach().tolist(),aug_output, input['target'].detach())
+        #             output['loss'] += input['lam'] * self.EL_loss(input['id'].detach(),mix_output, input['mix_target'][:, 0].detach()) + (
+        #                     1 - input['lam']) * self.EL_loss(input['id'].detach(),mix_output, input['mix_target'][:, 1].detach())
+        #             output['loss'].backward()
+        #             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        #             optimizer.step()
+        #             evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+        #             logger.append(evaluation, 'train', n=input_size)
+        #             if num_batches is not None and i == num_batches - 1:
+        #                 break
+        elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and CI_dataset is not None:
+            fix_dataset, mix_dataset,_ = dataset
+            fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
+            mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
+            # print(mix_data_loader)
+            ci_data_loader = make_data_loader({'train':CI_dataset},'client')['train']
+            # print(ci_data_loader)
+            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            model.load_state_dict(self.model_state_dict, strict=False)
+            self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+            optimizer = make_optimizer(model.parameters(), 'local')
+            optimizer.load_state_dict(self.optimizer_state_dict)
+            model.train(True)
+            if cfg['world_size']==1:
+                model.projection.requires_grad_(False)
+            if cfg['world_size']>1:
+                model.module.projection.requires_grad_(False)
+            if cfg['client']['num_epochs'] == 1:
+                num_batches = int(np.ceil(len(fix_data_loader) * float(cfg['local_epoch'][0])))
+            else:
+                num_batches = None
+            
+            for epoch in range(1, cfg['client']['num_epochs'] + 1):
+                for i, (fix_input,mix_input,ci_input) in enumerate(zip(fix_data_loader, mix_data_loader,ci_data_loader)):
+                    # input = {'data': fix_input['aug'], 'target': fix_input['target'], 'aug': fix_input['aug'],
+                    #          'mix_data': mix_input['aug'], 'mix_target': mix_input['target']}
+                    # input = {'data': fix_input['data'], 'augw':fix_input['augw'], 'target': fix_input['target'], 'augs': fix_input['augs'],
+                    #          'mix_data': mix_input['augw'], 'mix_target': mix_input['target']}
+                    input = {'data': fix_input['augw'], 'target': fix_input['target'], 'aug': fix_input['augs'],
+                            'mix_data': mix_input['augs'], 'mix_target': mix_input['target'],'ci_data':ci_input['data'],'ci_target':ci_input['target']}
+                    
+                    input = collate(input)
+                    # print(len(ci_input['data']))
+                    input_size = input['data'].size(0)
+                    input['lam'] = self.beta.sample()[0]
+                    input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
+                    input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
+                    input['loss_mode'] = cfg['loss_mode']
+                    input = to_device(input, cfg['device'])
+                    optimizer.zero_grad()
+                    output = model(input)
+                    output['loss'].backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                    optimizer.step()
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    logger.append(evaluation, 'train', n=input_size)
+                    if num_batches is not None and i == num_batches - 1:
+                        break
+        # elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and CI_dataset is not None:
+        #     fix_dataset, mix_dataset,_ = dataset
+        #     fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
+        #     mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
+        #     # print(mix_data_loader)
+        #     ci_data_loader = make_data_loader({'train':CI_dataset},'client')['train']
+        #     # print(ci_data_loader)
+        #     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        #     model.load_state_dict(self.model_state_dict, strict=False)
+        #     self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+        #     optimizer = make_optimizer(model.parameters(), 'local')
+        #     optimizer.load_state_dict(self.optimizer_state_dict)
+        #     model.train(True)
+        #     if cfg['world_size']==1:
+        #         model.projection.requires_grad_(False)
+        #     if cfg['world_size']>1:
+        #         model.module.projection.requires_grad_(False)
+        #     if cfg['client']['num_epochs'] == 1:
+        #         num_batches = int(np.ceil(len(fix_data_loader) * float(cfg['local_epoch'][0])))
+        #     else:
+        #         num_batches = None
+            
+        #     for epoch in range(1, cfg['client']['num_epochs'] + 1):
+        #         for i, (fix_input,mix_input,ci_input) in enumerate(zip(fix_data_loader, mix_data_loader,ci_data_loader)):
+        #             # input = {'data': fix_input['aug'], 'target': fix_input['target'], 'aug': fix_input['aug'],
+        #             #          'mix_data': mix_input['aug'], 'mix_target': mix_input['target']}
+        #             # input = {'data': fix_input['data'], 'augw':fix_input['augw'], 'target': fix_input['target'], 'augs': fix_input['augs'],
+        #             #          'mix_data': mix_input['augw'], 'mix_target': mix_input['target']}
+        #             input = {'data': fix_input['augw'], 'target': fix_input['target'], 'aug': fix_input['augs'],
+        #                     'mix_data': mix_input['augs'], 'mix_target': mix_input['target'],'ci_data':ci_input['data'],'ci_target':ci_input['target']}
+                    
+        #             input = collate(input)
+        #             # print(len(ci_input['data']))
+        #             input_size = input['data'].size(0)
+        #             input['lam'] = self.beta.sample()[0]
+        #             input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
+        #             input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
+        #             input['loss_mode'] = cfg['loss_mode']
+        #             input = to_device(input, cfg['device'])
+        #             optimizer.zero_grad()
+        #             output = model(input)
+        #             output['loss'].backward()
+        #             torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        #             optimizer.step()
+        #             evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+        #             logger.append(evaluation, 'train', n=input_size)
+        #             if num_batches is not None and i == num_batches - 1:
+        #                 break
+        
+        elif 'bmd' in cfg['loss_mode']:
+            _,_,dataset = dataset
+            train_data_loader = make_data_loader({'train': dataset}, 'client')['train']
+            test_data_loader = make_data_loader({'train': dataset},'client',batch_size = {'train':50},shuffle={'train':False})['train']
+            # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            if cfg['world_size']==1:
+                model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            elif cfg['world_size']>1:
+                cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model = eval('models.{}()'.format(cfg['model_name']))
+                model = torch.nn.DataParallel(model,device_ids = [0, 1])
+                model.to(cfg["device"])
+            model.load_state_dict(self.model_state_dict, strict=False)
+            self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+            optimizer = make_optimizer(model.parameters(), 'local')
+            optimizer.load_state_dict(self.optimizer_state_dict)
+            model.train(True)
+            # if cfg['world_size']==1:
+            #     model.projection.requires_grad_(False)
+            # if cfg['world_size']>1:
+            #     model.module.projection.requires_grad_(False)
+                
+            if cfg['client']['num_epochs'] == 1:
+                num_batches = int(np.ceil(len(data_loader) * float(cfg['local_epoch'][0])))
+            else:
+                num_batches = None
+            for epoch in range(1, cfg['client']['num_epochs'] + 1):
+                # data_loader = make_data_loader({'train': dataset}, 'client')['train']
+                # with torch.no_grad():
+                #     model.eval()
+                #     print("update psd label bank!")
+                #     glob_multi_feat_cent, all_psd_label = init_multi_cent_psd_label(model,data_loader)
+                    
+                #     model.train()
+                # epoch_idx=epoch
+                # for i, input in enumerate(data_loader):
+                #     # print(i)
+                #     input = collate(input)
+                #     input_size = input['data'].size(0)
+                #     input['loss_mode'] = cfg['loss_mode']
+                #     input = to_device(input, cfg['device'])
+                #     optimizer.zero_grad()
+                #     # iter_idx += 1
+                #     # imgs_train = imgs_train.cuda()
+                #     # imgs_idx = imgs_idx.cuda() 
+                    
+                #     psd_label = all_psd_label[input['id']]
+                    
+                #     embed_feat, pred_cls = model(input)
+                    
+                #     if pred_cls.shape != psd_label.shape:
+                #         # psd_label is not one-hot like.
+                #         psd_label = torch.zeros_like(pred_cls).scatter(1, psd_label.unsqueeze(1), 1)
+                    
+                #     mean_pred_cls = torch.mean(pred_cls, dim=0, keepdim=True) #[1, C]
+                #     reg_loss = - torch.sum(torch.log(mean_pred_cls) * mean_pred_cls)
+                #     ent_loss = - torch.sum(torch.log(pred_cls) * pred_cls, dim=1).mean()
+                #     psd_loss = - torch.sum(torch.log(pred_cls) * psd_label, dim=1).mean()
+                    
+                #     if epoch_idx >= 1.0:
+                #         loss = ent_loss + 2.0 * psd_loss
+                #     else:
+                #         loss = - reg_loss + ent_loss
+                    
+                #     #==================================================================#
+                #     # SOFT FEAT SIMI LOSS
+                #     #==================================================================#
+                #     normed_emd_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
+                #     dym_feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_emd_feat)
+                #     dym_feat_simi, _ = torch.max(dym_feat_simi, dim=2) #[N, C]
+                #     dym_label = torch.softmax(dym_feat_simi, dim=1)    #[N, C]
+                    
+                #     dym_psd_loss = - torch.sum(torch.log(pred_cls) * dym_label, dim=1).mean() - torch.sum(torch.log(dym_label) * pred_cls, dim=1).mean()
+                    
+                #     if epoch_idx >= 1.0:
+                #         loss += 0.5 * dym_psd_loss
+                #     #==================================================================#
+                #     #==================================================================#
+                #     # lr_scheduler(optimizer, iter_idx, iter_max)
+                #     # optimizer.zero_grad()
+                #     loss.backward()
+                #     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                #     optimizer.step()
+                #     with torch.no_grad():
+                #         # loss_stack.append(loss.cpu().item())
+                #         glob_multi_feat_cent = EMA_update_multi_feat_cent_with_feat_simi(glob_multi_feat_cent, embed_feat, decay=0.9999)
+                #     # output = model(input)
+                #     # print(output.keys())
+                    output = {}
+                    loss = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch)
+                    output['loss'] = loss
+                    # output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+                    # output['loss'].backward()
+                    # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                    # optimizer.step()
+                    # evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+                    # evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    # logger.append(evaluation, 'train', n=input_size)
+                    if num_batches is not None and i == num_batches - 1:
+                        break
+        elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and CI_dataset is  None:
+            fix_dataset, mix_dataset,_ = dataset
+            fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
+            mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
+            model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+            model.load_state_dict(self.model_state_dict, strict=False)
+            
+            self.optimizer_state_dict['param_groups'][0]['lr'] = lr
+            optimizer = make_optimizer(model.parameters(), 'local')
+            optimizer.load_state_dict(self.optimizer_state_dict)
+            model.train(True)
+            if cfg['kl_loss'] == 1:
+                fix_model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+                # fix_model.load_state_dict(self.fix_model_state_dict, strict=False)
+                fix_model.load_state_dict(self.model_state_dict, strict=False)
+                # kl_optimizer = make_optimizer(fix_model.parameters(), 'local')
+                # kl_optimizer.load_state_dict(self.kl_optimizer_state_dict)
+            # if cfg['world_size']==1:
+            #     model.projection.requires_grad_(False)
+            # if cfg['world_size']>1:
+            #     model.module.projection.requires_grad_(False)
+            if cfg['client']['num_epochs'] == 1:
+                num_batches = int(np.ceil(len(fix_data_loader) * float(cfg['local_epoch'][0])))
+            else:
+                num_batches = None
+            for epoch in range(1, cfg['client']['num_epochs'] + 1):
+                for i, (fix_input, mix_input) in enumerate(zip(fix_data_loader, mix_data_loader)):
+                    # print(fix_input['target'])
+                    # input = {'data': fix_input['aug'], 'target': fix_input['target'], 'aug': fix_input['aug'],
+                    #          'mix_data': mix_input['aug'], 'mix_target': mix_input['target']}
+                    # input = {'data': fix_input['data'], 'augw':fix_input['augw'], 'target': fix_input['target'], 'augs': fix_input['augs'],
+                    #          'mix_data': mix_input['augw'], 'mix_target': mix_input['target']}
+                    output = {}
+                    input = {'data': fix_input['augw'], 'target': fix_input['target'], 'aug': fix_input['augs'],
+                             'mix_data': mix_input['augs'], 'mix_target': mix_input['target'],'id':fix_input['id']}
+                    input = collate(input)
+                    input_size = input['data'].size(0)
+                    input['lam'] = self.beta.sample()[0]
+                    input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
+                    input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
+                    input['loss_mode'] = cfg['loss_mode']
+                    input = to_device(input, cfg['device'])
+                    optimizer.zero_grad()
+                    # output = model(input)
+                    aug_output,mix_output,augw_output = model(input)
+                    output['target'] = augw_output
+                    # print(aug_output.get_device(),mix_output.get_device(),input['id'],input['target'].detach().get_device())
+                    output['loss']  = self.EL_loss(input['id'].detach(),aug_output, input['target'].detach())
+                    output['loss'] += input['lam'] * self.EL_loss(input['id'].detach(),mix_output, input['mix_target'][:, 0].detach()) + (
+                            1 - input['lam']) * self.EL_loss(input['id'].detach(),mix_output, input['mix_target'][:, 1].detach())
+                    output['loss'].backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                    optimizer.step()
+                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    logger.append(evaluation, 'train', n=input_size)
+                    if num_batches is not None and i == num_batches - 1:
+                        break
+                if cfg['kl_loss']==1:
+                    tau = 4
+                    for epoch in range(1):
+                        for i, fix_input in enumerate(fix_data_loader):
+                            # input = {'data': fix_input['aug'], 'target': fix_input['target'], 'aug': fix_input['aug'],
+                            #          'mix_data': mix_input['aug'], 'mix_target': mix_input['target']}
+                            # input = {'data': fix_input['data'], 'augw':fix_input['augw'], 'target': fix_input['target'], 'augs': fix_input['augs'],
+                            #          'mix_data': mix_input['augw'], 'mix_target': mix_input['target']}
+                            input = {'data': fix_input['augw'], 'target': fix_input['target'], 'aug': fix_input['augs'],
+                                        }
+                            input = collate(input)
+                            input_size = input['data'].size(0)
+                            input['lam'] = self.beta.sample()[0]
+                            # input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
+                            # input['mix_target'] = torch.stack([input['target'], input['mix_target']], dim=-1)
+                            input['loss_mode'] = cfg['loss_mode']
+                            
+                            input = to_device(input, cfg['device'])
+                            input['kl_loss'] = cfg['kl_loss']
+                            optimizer.zero_grad()
+                            output = F.softmax(tau*model(input),dim=1)
+                            output_fix = F.softmax(tau*fix_model(input),dim=1)
+                            kl_loss = torch.nn.KLDivLoss(reduction="batchmean")
+                            output_loss = 1*kl_loss(output,output_fix)
+                            output_loss.backward()
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                            optimizer.step()
+                            # evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                            # logger.append(evaluation, 'train', n=input_size)
+                            if num_batches is not None and i == num_batches - 1:
+                                break
         else:
             raise ValueError('Not valid client loss mode')
         self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
         self.model_state_dict = save_model_state_dict(model.state_dict())
+        # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         return
+def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch):
+    loss_stack = []
+    with torch.no_grad():
+        model.eval()
+        # print("update psd label bank!")
+        glob_multi_feat_cent, all_psd_label = init_multi_cent_psd_label(model,test_data_loader)
+        
+        model.train()
+    epoch_idx=epoch
+    for i, input in enumerate(train_data_loader):
+        # print(i)
+        input = collate(input)
+        input_size = input['data'].size(0)
+        input['loss_mode'] = cfg['loss_mode']
+        input = to_device(input, cfg['device'])
+        optimizer.zero_grad()
+        # iter_idx += 1
+        # imgs_train = imgs_train.cuda()
+        # imgs_idx = imgs_idx.cuda() 
+        
+        psd_label = all_psd_label[input['id']]
+        # print(input)
+        embed_feat, pred_cls = model(input)
+        
+        if pred_cls.shape != psd_label.shape:
+            # psd_label is not one-hot like.
+            psd_label = torch.zeros_like(pred_cls).scatter(1, psd_label.unsqueeze(1), 1)
+        
+        mean_pred_cls = torch.mean(pred_cls, dim=0, keepdim=True) #[1, C]
+        reg_loss = - torch.sum(torch.log(mean_pred_cls) * mean_pred_cls)
+        ent_loss = - torch.sum(torch.log(pred_cls) * pred_cls, dim=1).mean()
+        psd_loss = - torch.sum(torch.log(pred_cls) * psd_label, dim=1).mean()
+        
+        if epoch_idx >= 1.0:
+            loss = ent_loss + 2.0 * psd_loss
+        else:
+            loss = - reg_loss + ent_loss
+        
+        #==================================================================#
+        # SOFT FEAT SIMI LOSS
+        #==================================================================#
+        normed_emd_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
+        dym_feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_emd_feat)
+        dym_feat_simi, _ = torch.max(dym_feat_simi, dim=2) #[N, C]
+        dym_label = torch.softmax(dym_feat_simi, dim=1)    #[N, C]
+        
+        dym_psd_loss = - torch.sum(torch.log(pred_cls) * dym_label, dim=1).mean() - torch.sum(torch.log(dym_label) * pred_cls, dim=1).mean()
+        
+        if epoch_idx >= 1.0:
+            loss += 0.5 * dym_psd_loss
+        #==================================================================#
+        #==================================================================#
+        # lr_scheduler(optimizer, iter_idx, iter_max)
+        # optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        optimizer.step()
+        with torch.no_grad():
+            loss_stack.append(loss.cpu().item())
+            glob_multi_feat_cent = EMA_update_multi_feat_cent_with_feat_simi(glob_multi_feat_cent, embed_feat, decay=0.9999)
+        # output = model(input)
+        # print(output.keys())
+    train_loss = np.mean(loss_stack)
 
+    return train_loss
 def save_model_state_dict(model_state_dict):
     return {k: v.cpu() for k, v in model_state_dict.items()}
 

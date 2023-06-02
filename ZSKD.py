@@ -2,13 +2,13 @@ import os
 import tqdm
 import numpy as np
 import sys
-
+import random
 import torch
 import torch.nn.functional as F
 import torchvision.utils as vutils
 from torch.autograd import Variable
 
-from utils import data_info, save_img
+from utils import save_img
 
 class ZSKD():
     def __init__(self, dataset, teacher, num_sample, beta, t, batch_size, lr, iters):
@@ -31,9 +31,11 @@ class ZSKD():
         def get_class_similarity():
 
             # Find last layer
-            t_layer = list(self.teacher.children())[-1]
+            t_layer = list(self.teacher.children())[-2]
+            print(t_layer)
             while 'Sequential' in str(t_layer):
                 t_layer = list(t_layer.children())[-1]
+                print(t_layer)
 
             t_weights = list(t_layer.parameters())[0].cuda()  # size(#class number, #weights in final-layer )
 
@@ -45,31 +47,46 @@ class ZSKD():
             return cls_sim_norm
 
         cls_sim_norm = get_class_similarity()
-        
+        temp= 0.1*cls_sim_norm[0].reshape((1,-1))
+        # print(temp,temp.shape[-1:])
         loss = torch.nn.BCELoss()
         print('\n'+'-'*30+' ZSKD start '+'-'*30)
 
         # generate synthesized images
         for k in range(self.num_classes):
-
+            print(k)
             for b in self.beta:
+                print(b)
                 for n in range(self.num_sample // len(self.beta) // self.batch_size // self.num_classes):
 
                     # sampling target label from Dirichlet distribution
-                    dir_dist = torch.distributions.dirichlet.Dirichlet(b * cls_sim_norm[k])
+                    temp = b * cls_sim_norm[k]
+                    # print(temp)
+                    dir_dist = torch.distributions.dirichlet.Dirichlet(temp,validate_args=False)
                     y=Variable(dir_dist.rsample((self.batch_size,)),requires_grad=False)
 
                     # optimization for images
                     inputs = torch.randn((self.batch_size, self.cwh[0], self.cwh[1], self.cwh[2])).cuda()
                     inputs = Variable(inputs ,requires_grad=True)
                     optimizer = torch.optim.Adam([inputs], self.lr)
-
+                    print
+                    lim_0,lim_1 = 2,2
                     for n_iter in range(self.iters):
+                        off1 = random.randint(-lim_0, lim_0)
+                        off2 = random.randint(-lim_1, lim_1)
+                        inputs_jit = torch.roll(inputs, shifts=(off1,off2), dims=(2,3))
                         optimizer.zero_grad()
-                        logit = self.teacher(inputs)/20.0
+                        logit,_ = self.teacher(inputs_jit)
+                        logit/=20
                         output= torch.nn.Softmax(dim=1)(logit)
+                        diff1 = inputs_jit[:,:,:,:-1] - inputs_jit[:,:,:,1:]
+                        diff2 = inputs_jit[:,:,:-1,:] - inputs_jit[:,:,1:,:]
+                        diff3 = inputs_jit[:,:,1:,:-1] - inputs_jit[:,:,:-1,1:]
+                        diff4 = inputs_jit[:,:,:-1,:-1] - inputs_jit[:,:,1:,1:]
+                        loss_var = torch.norm(diff1) + torch.norm(diff2) + torch.norm(diff3) + torch.norm(diff4)
                         
                         l = loss(output,y.detach())
+                        l = l + 0.0001*loss_var
                         l.backward()
                         optimizer.step()
                         if n_iter % 100 == 0 :
@@ -78,6 +95,7 @@ class ZSKD():
                     # save the synthesized images
                     t_cls = torch.argmax(y, dim=1).detach().cpu().numpy()
                     save_root = './saved_img/'+self.dataset+'/'
+                    # os.mkdir(save_root)
                     for m in range(self.batch_size):
                         save_dir = save_root+str(t_cls[m])+'/'
                         if not os.path.exists(save_dir):
@@ -95,7 +113,7 @@ class ZSKD():
         
         print('\n'+'-'*30+' ZSKD end '+'-'*30)
 
-        return self.student, save_root
+        return self.student
 
 
 

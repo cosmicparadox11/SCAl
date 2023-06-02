@@ -54,7 +54,7 @@ def runExperiment():
     # print(len(client_dataset['train'].data))
     #data_loader = make_data_loader(server_dataset, 'global')
     data_loader = make_data_loader(client_dataset, 'global')
-    # print(cfg)
+    print(cfg)
     # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     if cfg['world_size']==1:
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
@@ -123,6 +123,7 @@ def runExperiment():
             elif epoch > cfg['switch_epoch_pred']:
                 # print('entered fix-mix',epoch)
                 cfg['loss_mode'] = 'alt-fix'
+                # cfg['loss_mode'] = 'fix-mix'
         train_client(batchnorm_dataset, client_dataset['train'], server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         # if 'ft' in cfg and cfg['ft'] == 0:
         #     train_server(server_dataset['train'], server, optimizer, metric, logger, epoch)
@@ -232,7 +233,8 @@ def train_client(batchnorm_dataset, client_dataset, server, client, supervised_c
                 client[client_id[i]].active = True
     elif 'alt-fix' in cfg['loss_mode']:
         print('entered alt-fix mode')
-        if epoch %2 == 0:
+        if epoch %2 != 0:# or epoch >270:
+            # cfg['loss_mode'] = 'bmd'
             cfg['loss_mode'] = 'fix-mix'
             print(cfg['loss_mode'])
             num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
@@ -246,17 +248,42 @@ def train_client(batchnorm_dataset, client_dataset, server, client, supervised_c
             # client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
-        elif epoch % 2 != 0:
+        elif epoch % 2 == 0:# and epoch <=270:
             cfg['loss_mode'] = 'sup'
             print(cfg['loss_mode'])
             num_active_clients = len(supervised_clients)
             client_id = supervised_clients
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
+    # elif 'alt-fix' in cfg['loss_mode']:
+    #     print('entered alt-fix mode')
+    #     if epoch %2 == 0:
+    #         cfg['loss_mode'] = 'fix-mix'
+    #         print(cfg['loss_mode'])
+    #         num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
+    #         ACL=set(torch.arange(cfg['num_clients']).tolist())
+    #         ACL = ACL-set(supervised_clients)
+    #         # print(ACL)
+    #         # ran_CL = set(torch.randperm(cfg['num_clients']).tolist())
+    #         # ran_CL = [ran_CL-set(supervised_clients)]
+    #         client_id = random.sample(ACL,num_active_clients)
+    #         # print(client_id)
+    #         # client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
+    #         for i in range(num_active_clients):
+    #             client[client_id[i]].active = True
+    #     elif epoch % 2 != 0:
+    #         cfg['loss_mode'] = 'sup'
+    #         print(cfg['loss_mode'])
+    #         num_active_clients = len(supervised_clients)
+    #         client_id = supervised_clients
+    #         for i in range(num_active_clients):
+    #             client[client_id[i]].active = True
 
     # server.distribute(client, batchnorm_dataset)
     print(f'traning the following clients {client_id}')
     server.distribute(client,batchnorm_dataset)
+    if cfg['kl_loss'] ==1 and epoch==cfg['switch_epoch']:
+        server.distribute_fix_model(client,batchnorm_dataset)
     num_active_clients = len(client_id)
     start_time = time.time()
     lr = optimizer.param_groups[0]['lr']
@@ -273,10 +300,11 @@ def train_client(batchnorm_dataset, client_dataset, server, client, supervised_c
         if dataset_m is not None:
             # print(cfg)
             # print(dataset_m)
+            # print(cfg['loss_mode'])
             if cfg['loss_mode'] == 'fix-mix' and dataset_m[0] is not None and dataset_m[1] is not None:
                 client[m].active = True
                 client[m].trainntune(dataset_m, lr, metric, logger, epoch)
-            elif 'sim' in cfg['loss_mode'] or 'sup' in cfg['loss_mode']:
+            elif 'sim' in cfg['loss_mode'] or 'sup' in cfg['loss_mode'] or 'bmd' in cfg['loss_mode']:
                 client[m].active = True
                 client[m].trainntune(dataset_m, lr, metric, logger, epoch)
             else:

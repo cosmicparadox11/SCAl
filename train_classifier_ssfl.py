@@ -98,7 +98,7 @@ def runExperiment():
             logger = result['logger']
         else:
             server = make_server(model)
-            client = make_client(model, data_split)
+            client,supervised_clients = make_client(model, data_split)
             logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
     else:
         last_epoch = 1
@@ -126,15 +126,16 @@ def runExperiment():
         # #           'optimizer_state_dict': optimizer.state_dict(),
         # #           'scheduler_state_dict': scheduler.state_dict(),
         # #           'supervised_idx': supervised_idx, 'data_split': data_split, 'logger': logger}
-        # result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
-        #           'optimizer_state_dict': optimizer.state_dict(),
-        #           'scheduler_state_dict': scheduler.state_dict(),
-        #           'data_split': data_split, 'logger': logger}
-        # save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-        #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-        #     shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-        #                 './output/model/{}_best.pt'.format(cfg['model_tag']))
+        result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
+                  'optimizer_state_dict': optimizer.state_dict(),
+                  'scheduler_state_dict': scheduler.state_dict(),
+                  'data_split': data_split, 'logger': logger,'supervised_clients':supervised_clients}
+        if epoch % 10 ==0:
+            save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+            if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+                metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+                shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
+                            './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
     return
 
@@ -160,7 +161,10 @@ def make_client(model, data_split):
 
 def train_client(batchnorm_dataset, client_dataset, server, client, optimizer, metric, logger, epoch,supervised_clients):
     logger.safe(True)
-    
+    num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
+    client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
+    for i in range(num_active_clients):
+        client[client_id[i]].active = True
     # server.distribute(client, batchnorm_dataset)
     print(f'traning the following clients{client_id}')
     server.distribute(client,batchnorm_dataset)
@@ -176,7 +180,7 @@ def train_client(batchnorm_dataset, client_dataset, server, client, optimizer, m
             dataset_m = client[m].make_dataset(dataset_m, metric, logger)
         if dataset_m is not None:
             client[m].active = True
-            client[m].train(dataset_m, lr, metric, logger)
+            client[m].trainntune(dataset_m, lr, metric, logger,epoch)
         else:
             client[m].active = False
         if i % int((num_active_clients * cfg['log_interval']) + 1) == 0:

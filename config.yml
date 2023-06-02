@@ -23,9 +23,11 @@ log_interval: 0.25
 device: cuda
 world_size: 1
 resume_mode: 0
-threshold : .8
+threshold : .5
 verbose: False
 switch_epoch : 0
 cycles : 200
 d_mode : 'new'
 switch_epoch_pred : 0
+kl_loss : 0
+elr_lam : 1.0

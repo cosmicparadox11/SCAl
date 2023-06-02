@@ -3,7 +3,7 @@ python train_classifier_ssfl.py --data_name CIFAR10 --model_name resnet9 --d_mod
 python train_classifier_ssfl.py --data_name CIFAR10 --model_name resnet18 --d_mode old --cycles 200 --device cuda:0 --control_name "50018_sup_100_0.1_iid_5-5_0.5_1"
 
 
-
+python train_classifier_baseline.py --data_name CIFAR100 --model_name resnet9 --d_mode new --device cuda:1 --cycles 300 --switch_epoch 1000 --control_name "5000_sup-ft-bl_100_0.1_iid_5-5_0.5_1" --resume_mode 1
 
 test 2
 python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:1 --cycles 100 --switch_epoch 30 --control_name "5030_sim-ft_100_0.1_iid_5-5_0.5_1"
@@ -42,3 +42,19 @@ python train_classifier_ci.py --data_name CIFAR10 --model_name resnet9 --d_mode 
 
 predictions tests:
 python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --cycles 500 --switch_epoch_pred 51  --control_name "500695_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 0
+WITH ExponentialLR
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --threshold 0.6 --cycles 500 --switch_epoch_pred 50  --control_name "150062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --threshold 0.7 --cycles 500 --switch_epoch_pred 50  --control_name "250062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --threshold 0.9 --cycles 500 --switch_epoch_pred 50  --control_name "350062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --threshold 0.95 --cycles 500 --switch_epoch_pred 50  --control_name "450062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 1.5 --cycles 500 --switch_epoch_pred 50  --control_name "550062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 2 --cycles 500 --switch_epoch_pred 50  --control_name "650062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 2.5 --cycles 500 --switch_epoch_pred 50  --control_name "750062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 3.5 --cycles 500 --switch_epoch_pred 50  --control_name "850062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 0.5 --threshold 0.5 --cycles 500 --switch_epoch_pred 50  --control_name "950062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 0.5 --threshold 0.8 --cycles 500 --switch_epoch_pred 50  --control_name "1050062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 0.5 --threshold 0.5 --cycles 500 --switch_epoch_pred 60  --control_name "1350062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 0.5 --threshold 0.5 --cycles 500 --switch_epoch_pred 60  --control_name "1350062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 0.3 --threshold 0.5 --cycles 500 --switch_epoch_pred 60  --control_name "1550062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --elr_lam 0.3 --threshold 0.5 --cycles 500 --switch_epoch_pred 60  --control_name "1\650062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1

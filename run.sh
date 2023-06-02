@@ -1,1 +1,1 @@
-python train_classifier_ci.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:0 --cycles 500 --switch_epoch_pred 51  --control_name "10000_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
+python train_classifier_ssFT.py --data_name CIFAR10 --model_name resnet9 --d_mode new --device cuda:1 --elr_lam 0.4 --threshold 0.5 --cycles 500 --switch_epoch_pred 60  --control_name "1650062_sup-ft-fix_100_0.1_iid_5-5_0.07_1" --resume_mode 1
