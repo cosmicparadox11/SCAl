@@ -1,0 +1,3 @@
+python train_centralDA_target.py --data_name_unsup  MNIST --data_name USPS --model_name resnet9 --d_mode new --device cuda:1 --var_lr 0.03  --scheduler_name  'CosineAnnealingLR' --cycles 70   --control_name "0_sup_100_0.1_iid_4-5_0.07_1" --resume_mode 1
+python train_centralDA_target.py --data_name_unsup  MNIST --data_name SVHN --model_name resnet9 --d_mode new --device cuda:1 --var_lr 0.03  --scheduler_name  'CosineAnnealingLR' --cycles 70   --control_name "0_sup_100_0.1_iid_4-5_0.07_1" --resume_mode 1
+python train_centralDA_target.py --data_name_unsup  USPS --data_name SVHN --model_name resnet9 --d_mode new --device cuda:0 --var_lr 0.01  --scheduler_name  'CosineAnnealingLR' --cycles 70   --control_name "1_sup_100_0.1_iid_4-5_0.07_1" --resume_mode 1

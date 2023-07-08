@@ -120,8 +120,10 @@ def process_control():
     if cfg['control']['num_supervised'] == 'fs':
         cfg['control']['num_supervised'] = '-1'
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
-    data_shape = {'MNIST': [1, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
-                  'SVHN': [3, 32, 32]}
+    # data_shape = {'MNIST': [1, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
+    #               'SVHN': [3, 32, 32]}
+    data_shape = {'MNIST': [3, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
+                  'SVHN': [3, 32, 32],'USPS':[3,16,16],'office31':[3,1000,1000]}#,'amazon':[3,300,300],'webcam':[3,477,477]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [32, 64]}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
@@ -274,6 +276,21 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 # def resume(model_tag, load_tag='best', verbose=True):
     if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
         result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+    else:
+        print('Not exists model tag: {}, start from scratch'.format(model_tag))
+        from datetime import datetime
+        from logger import Logger
+        last_epoch = 1
+        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], datetime.now().strftime('%b%d_%H-%M-%S'))
+        logger = Logger(logger_path)
+        result = {'epoch': last_epoch, 'logger': logger}
+    if verbose:
+        print('Resume from {}'.format(result['epoch']))
+    return result
+def resume_DA(model_tag, load_tag='checkpoint',mode = 'source', verbose=True):
+# def resume(model_tag, load_tag='best', verbose=True):
+    if os.path.exists('./output/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag)):
+        result = load('./output/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag))
     else:
         print('Not exists model tag: {}, start from scratch'.format(model_tag))
         from datetime import datetime

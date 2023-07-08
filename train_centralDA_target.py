@@ -8,10 +8,17 @@ import time
 import torch
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader, separate_dataset_su, make_batchnorm_stats
+from data import fetch_dataset, make_data_loader, separate_dataset_su, make_batchnorm_stats,FixTransform
+from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset,separate_dataset_DA, separate_dataset_su, \
+    make_batchnorm_dataset_su, make_batchnorm_stats , split_class_dataset,split_class_dataset_DA
 from metrics import Metric
-from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
+from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate,load
 from logger import make_logger
+from net_utils import set_random_seed
+from net_utils import init_multi_cent_psd_label
+from net_utils import EMA_update_multi_feat_cent_with_feat_simi
+import numpy as np
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
@@ -27,7 +34,7 @@ def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name']]
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['data_name_unsup'], cfg['model_name']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
@@ -38,72 +45,109 @@ def runExperiment():
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
-    dataset = fetch_dataset(cfg['data_name'])
+    # dataset = fetch_dataset(cfg['data_name'])
+    client_dataset_sup = fetch_dataset(cfg['data_name'])
+    # print(cfg['data_name_unsup'])
+    client_dataset_unsup = fetch_dataset(cfg['data_name_unsup'])
     # print(len(dataset['test']))
-    process_dataset(dataset)
-    dataset['train'], _, supervised_idx = separate_dataset_su(dataset['train'])
-    # print(len(supervised_idx))
-    data_loader = make_data_loader(dataset, 'global')
-    model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    net = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    # print(model)
-    # print(cfg['local'].keys())
-    optimizer = make_optimizer(model.parameters(), 'local')
+    # process_dataset(dataset)
+    process_dataset(client_dataset_sup,client_dataset_unsup)
+    # cfg['num_supervised'] == -1
+    # client_dataset_sup['train'], _, supervised_idx_sup = separate_dataset_su(client_dataset_sup['train'])
+    # cfg['data_name'] = 'SVHN'
+    # client_dataset_unsup['train'], _, supervised_idx_sup = separate_dataset_su(client_dataset_unsup['train'])
+    # cfg['data_name'] = 'MNIST'
+    # data_loader_sup = make_data_loader(client_dataset_sup['train'], 'global')
+    # data_loader_unsup = make_data_loader(client_dataset_unsup['train'], 'global')
+    # data_loader_sup_t = make_data_loader(client_dataset_sup['test'], 'global')
+    # data_loader_unsup_t = make_data_loader(client_dataset_unsup['test'], 'global')
+    # # print(len(supervised_idx))
+    # data_loader = make_data_loader(dataset, 'global')
+    # transform_sup = FixTransform(cfg['data_name'])
+    # client_dataset_sup['train'].transform = transform_sup
+    transform_unsup = FixTransform(cfg['data_name_unsup'])
+    client_dataset_unsup['train'].transform = transform_unsup
+    # data_loader_sup = make_data_loader(client_dataset_sup, 'global')
+    data_loader_unsup = make_data_loader(client_dataset_unsup, 'global')
+    model_t = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    
+
+
+
+
+
+    cfg['local']['lr'] = cfg['var_lr']
+    cfg['loss_mode'] = 'bmd'
+    last_epoch = 1
+    logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+
+    # model_t = make_batchnorm_stats(client_dataset_unsup['train'], model, cfg['model_name'])
+
+    optimizer = make_optimizer(model_t.parameters(), 'local')
     scheduler = make_scheduler(optimizer, 'global')
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-    if cfg['resume_mode'] == 1:
-        result = resume(cfg['model_tag'],'best')
-        last_epoch = result['epoch']
-        if last_epoch > 1:
-            model.load_state_dict(result['model_state_dict'])
-            optimizer.load_state_dict(result['optimizer_state_dict'])
-            scheduler.load_state_dict(result['scheduler_state_dict'])
-            logger = result['logger']
-        else:
-            logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
-    else:
-        last_epoch = 1
-        logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+    temp = cfg['data_name']
+    cfg['model_tag'] = f'0_{temp}_resnet9_0_sup_100_0.1_iid_5-5_0.07_1'
+    result = resume(cfg['model_tag'],'best')
+    # result = load('./output/model/{}_{}.pt'.format(cfg['model_tag'], 'best'))
+    model_t.load_state_dict(result['model_state_dict'])
+    # if cfg['resume_mode'] == 1:
+    #     result = resume(cfg['model_tag'],'best')
+    #     last_epoch = result['epoch']
+    #     if last_epoch > 1:
+    #         model.load_state_dict(result['model_state_dict'])
+    #         optimizer.load_state_dict(result['optimizer_state_dict'])
+    #         scheduler.load_state_dict(result['scheduler_state_dict'])
+    #         logger = result['logger']
+    #     else:
+    #         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+    # else:
+    #     last_epoch = 1
+    #     logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
     if cfg['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
     cfg['model_name'] = 'global'
     # print(list(model.buffers()))
     cfg['global']['num_epochs'] = cfg['cycles']  
+    epoch  = 0
+    test(data_loader_unsup['test'], model_t, metric, logger, epoch)
+
+
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         # cfg['model_name'] = 'local'
         logger.safe(True)
-        train(data_loader['train'], model, optimizer, metric, logger, epoch)
+        
+        train_da(client_dataset_unsup['train'], model_t, optimizer, metric, logger, epoch)
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
         # print(list(model.buffers()))
-        test_model = make_batchnorm_stats(dataset['train'], model, cfg['model_name'])
+        test_model = make_batchnorm_stats(client_dataset_unsup['train'], model_t, cfg['model_name'])
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
-        test(data_loader['test'], test_model, metric, logger, epoch)
+        test(data_loader_unsup['test'], test_model, metric, logger, epoch)
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
         scheduler.step()
         logger.safe(False)
-        model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
-        result = {'cfg': cfg, 'epoch': epoch + 1, 'supervised_idx': supervised_idx,
+        model_state_dict = model_t.module.state_dict() if cfg['world_size'] > 1 else model_t.state_dict()
+        result = {'cfg': cfg, 'epoch': epoch + 1,
                   'model_state_dict': model_state_dict, 'optimizer_state_dict': optimizer.state_dict(),
                   'scheduler_state_dict': scheduler.state_dict(), 'logger': logger}
-        save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-            metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-            shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                        './output/model/{}_best.pt'.format(cfg['model_tag']))
+        if epoch%5==0:
+            print('saving')
+            save(result, './output/model_t/{}_checkpoint.pt'.format(cfg['model_tag']))
+            if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+                metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+                shutil.copy('./output/model_t/{}_checkpoint.pt'.format(cfg['model_tag']),
+                            './output/model_t/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
     logger.safe(False)
-    #Get Class impressions
-    cfg['loss_mode'] = 'gen'
-    
-    net.load_state_dict(result['model_state_dict'])
     # net.load_state_dict(result['model_state_dict'])
-    net.to(cfg['device'])
-    net.eval()
+    # # net.load_state_dict(result['model_state_dict'])
+    # net.to(cfg['device'])
+    # net.eval()
     #########################################################################################################################
     # # reserved to compute test accuracy on generated images by different networks
     # net_verifier = None
@@ -219,7 +263,7 @@ def runExperiment():
 def train(data_loader, model, optimizer, metric, logger, epoch):
     model.train(True)
     start_time = time.time()
-    model.projection.requires_grad_(False)
+    # model.projection.requires_grad_(False)
     for i, input in enumerate(data_loader):
         input = collate(input)
         input_size = input['data'].size(0)
@@ -245,6 +289,103 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
             print(logger.write('train', metric.metric_name['train']))
+    return
+
+def train_da(dataset, model, optimizer, metric, logger, epoch):
+    train_data_loader = make_data_loader({'train': dataset}, 'client')['train']
+    test_data_loader = make_data_loader({'train': dataset},'client',batch_size = {'train':500},shuffle={'train':False})['train']
+    # model.train(True)
+    start_time = time.time()
+    loss_stack = []
+    with torch.no_grad():
+        model.eval()
+        # print("update psd label bank!")
+        glob_multi_feat_cent, all_psd_label = init_multi_cent_psd_label(model,test_data_loader)
+        
+    model.train()
+    epoch_idx=epoch
+    print(epoch)
+    for i, input in enumerate(train_data_loader):
+        # print(i)
+        input = collate(input)
+        input_size = input['data'].size(0)
+        input['loss_mode'] = cfg['loss_mode']
+        input = to_device(input, cfg['device'])
+        optimizer.zero_grad()
+        # iter_idx += 1
+        # imgs_train = imgs_train.cuda()
+        # imgs_idx = imgs_idx.cuda() 
+        
+        psd_label = all_psd_label[input['id']]
+        # print(input)
+        embed_feat, pred_cls = model(input)
+        
+        if pred_cls.shape != psd_label.shape:
+            # psd_label is not one-hot like.
+            psd_label = torch.zeros_like(pred_cls).scatter(1, psd_label.unsqueeze(1), 1)
+        
+        mean_pred_cls = torch.mean(pred_cls, dim=0, keepdim=True) #[1, C]
+        reg_loss = - torch.sum(torch.log(mean_pred_cls) * mean_pred_cls)
+        ent_loss = - torch.sum(torch.log(pred_cls) * pred_cls, dim=1).mean()
+        psd_loss = - torch.sum(torch.log(pred_cls) * psd_label, dim=1).mean()
+        
+        if epoch_idx >= 1.0:
+            loss = ent_loss + 2.0 * psd_loss
+        else:
+            loss = -reg_loss +ent_loss
+        
+        #==================================================================#
+        # SOFT FEAT SIMI LOSS
+        #==================================================================#
+        normed_emd_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
+        dym_feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_emd_feat)
+        dym_feat_simi, _ = torch.max(dym_feat_simi, dim=2) #[N, C]
+        dym_label = torch.softmax(dym_feat_simi, dim=1)    #[N, C]
+        
+        dym_psd_loss = - torch.sum(torch.log(pred_cls) * dym_label, dim=1).mean() - torch.sum(torch.log(dym_label) * pred_cls, dim=1).mean()
+        
+        if epoch_idx >= 1.0:
+            loss += 0.5 * dym_psd_loss
+        #==================================================================#
+        #==================================================================#
+        # lr_scheduler(optimizer, iter_idx, iter_max)
+        # optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        optimizer.step()
+        with torch.no_grad():
+            loss_stack.append(loss.cpu().item())
+            glob_multi_feat_cent = EMA_update_multi_feat_cent_with_feat_simi(glob_multi_feat_cent, embed_feat, decay=0.9999)
+        # output = model(input)
+        # print(output.keys())
+    train_loss = np.mean(loss_stack)
+    print(train_loss)
+    # model.projection.requires_grad_(False)
+    # for i, input in enumerate(data_loader):
+    #     input = collate(input)
+    #     input_size = input['data'].size(0)
+    #     input = to_device(input, cfg['device'])
+    #     optimizer.zero_grad()
+    #     input['loss_mode'] = cfg['loss_mode']
+    #     output = model(input)
+    #     output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+    #     output['loss'].backward()
+    #     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+    #     optimizer.step()
+    #     evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+    #     logger.append(evaluation, 'train', n=input_size)
+    #     if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
+    #         _time = (time.time() - start_time) / (i + 1)
+    #         lr = optimizer.param_groups[0]['lr']
+    #         epoch_finished_time = datetime.timedelta(seconds=round(_time * (len(data_loader) - i - 1)))
+    #         exp_finished_time = epoch_finished_time + datetime.timedelta(
+    #             seconds=round((cfg[cfg['model_name']]['num_epochs'] - epoch) * _time * len(data_loader)))
+    #         info = {'info': ['Model: {}'.format(cfg['model_tag']),
+    #                          'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
+    #                          'Learning rate: {:.6f}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
+    #                          'Experiment Finished Time: {}'.format(exp_finished_time)]}
+    #         logger.append(info, 'train', mean=False)
+    #         print(logger.write('train', metric.metric_name['train']))
     return
 
 

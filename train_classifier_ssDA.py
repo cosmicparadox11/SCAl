@@ -13,7 +13,7 @@ from data import fetch_dataset, split_dataset, make_data_loader, separate_datase
     make_batchnorm_dataset_su, make_batchnorm_stats , split_class_dataset,split_class_dataset_DA
 from metrics import Metric
 from modules import Server, Client
-from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
+from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate,resume_DA
 from logger import make_logger
 
 cudnn.benchmark = True
@@ -28,8 +28,9 @@ process_args(args)
 def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
+    exp_num = cfg['control_name'].split('_')[0]
     for i in range(cfg['num_experiments']):
-        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name'],cfg['d_mode']]
+        model_tag_list = [str(seeds[i]), cfg['data_name'],cfg['data_name_unsup'], cfg['model_name'],exp_num]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
@@ -57,7 +58,7 @@ def runExperiment():
     #data_loader = make_data_loader(server_dataset, 'global')
     data_loader_sup = make_data_loader(client_dataset_sup, 'global')
     data_loader_unsup = make_data_loader(client_dataset_unsup, 'global')
-    print(cfg)
+    # print(cfg)
     # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     if cfg['world_size']==1:
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
@@ -96,7 +97,7 @@ def runExperiment():
     #     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     # print(metric.metric_name['train'])
     if cfg['resume_mode'] == 1:
-        result = resume(cfg['model_tag'])
+        result = resume_DA(cfg['model_tag'])
         last_epoch = result['epoch']
         if last_epoch > 1:
             data_split_sup = result['data_split_sup']
@@ -130,7 +131,7 @@ def runExperiment():
                     cfg['loss_mode'] = 'sup-ft'
             elif epoch > cfg['switch_epoch_pred']:
                 # print('entered fix-mix',epoch)
-                cfg['loss_mode'] = 'alt-fix'
+                cfg['loss_mode'] = 'alt-fix_'
                 # cfg['loss_mode'] = 'fix-mix'
         train_client(client_dataset_sup['train'], client_dataset_unsup['train'], server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         # if 'ft' in cfg and cfg['ft'] == 0:
@@ -156,22 +157,41 @@ def runExperiment():
         #           'optimizer_state_dict': optimizer.state_dict(),
         #           'scheduler_state_dict': scheduler.state_dict(),
         #           'data_split': data_split, 'logger': logger}
-        result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
-                  'optimizer_state_dict': optimizer.state_dict(),
-                  'scheduler_state_dict': scheduler.state_dict(),
-                  'data_split_sup': data_split_sup,'data_split_unsup' : data_split_unsup, 'logger': logger,'supervised_clients':supervised_clients }
-        # save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-        #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-        #     shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-        #                 './output/model/{}_best.pt'.format(cfg['model_tag']))
-        if epoch%10==0:
-            print('saving')
-            save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-            if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-                metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-                shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                            './output/model/{}_best.pt'.format(cfg['model_tag']))
+        if epoch<=cfg['switch_epoch_pred']:
+            result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': scheduler.state_dict(),
+                    'data_split_sup': data_split_sup,'data_split_unsup' : data_split_unsup, 'logger': logger,'supervised_clients':supervised_clients }
+            # save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+            # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+            #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+            #     shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
+            #                 './output/model/{}_best.pt'.format(cfg['model_tag']))
+            if epoch%2==0:
+                print('saving')
+                save(result, './output/model/source/{}_checkpoint.pt'.format(cfg['model_tag']))
+                if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+                    metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+                    shutil.copy('./output/model/source/{}_checkpoint.pt'.format(cfg['model_tag']),
+                                './output/model/source/{}_best.pt'.format(cfg['model_tag']))
+            
+        else :
+            result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': scheduler.state_dict(),
+                    'data_split_sup': data_split_sup,'data_split_unsup' : data_split_unsup, 'logger': logger,'supervised_clients':supervised_clients }
+            # save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+            # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+            #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+            #     shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
+            #                 './output/model/{}_best.pt'.format(cfg['model_tag']))
+            if epoch%2==0:
+                print('saving')
+                save(result, './output/model/target/{}_checkpoint.pt'.format(cfg['model_tag']))
+                if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+                    metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+                    shutil.copy('./output/model/target/{}_checkpoint.pt'.format(cfg['model_tag']),
+                                './output/model/target/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
     return
 
@@ -284,11 +304,74 @@ def train_client(client_dataset_sup, client_dataset_unsup, server, client, super
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
             server.distribute(client,client_dataset_sup)
-    elif 'alt-fix' in cfg['loss_mode']:
-        print('entered alt-fix mode')
-        if epoch %2 != 0:# or epoch >270:
-            # cfg['loss_mode'] = 'bmd'
-            cfg['loss_mode'] = 'fix-mix'
+    # elif 'alt-fix' in cfg['loss_mode']:
+    #     print('entered alt-fix mode')
+    #     if epoch %2 != 0:# or epoch >270:
+    #         cfg['loss_mode'] = 'bmd'
+    #         # cfg['loss_mode'] = 'fix-mix'
+    #         print(cfg['loss_mode'])
+    #         num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
+    #         ACL=set(torch.arange(cfg['num_clients']).tolist())
+    #         ACL = ACL-set(supervised_clients)
+    #         # print(ACL)
+    #         # ran_CL = set(torch.randperm(cfg['num_clients']).tolist())
+    #         # ran_CL = [ran_CL-set(supervised_clients)]
+    #         client_id = random.sample(ACL,num_active_clients)
+    #         # print(client_id)
+    #         # client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
+    #         for i in range(num_active_clients):
+    #             client[client_id[i]].active = True
+    #         server.distribute(client,client_dataset_unsup)
+    #     elif epoch % 2 == 0:# and epoch <=270:
+    #         cfg['loss_mode'] = 'sup'
+    #         print(cfg['loss_mode'])
+    #         num_active_clients = len(supervised_clients)
+    #         client_id = supervised_clients
+    #         for i in range(num_active_clients):
+    #             client[client_id[i]].active = True
+    #         server.distribute(client,client_dataset_sup)
+    ####################################
+    # elif 'alt-fix_' in cfg['loss_mode']:
+    #     print('eeentered entered alt-fix mode')
+    #     if epoch %2 != 0: # or epoch % 2 == 0:# or epoch >270:
+    #         cfg['loss_mode'] = 'bmd'
+    #         # cfg['loss_mode'] = 'fix-mix'
+    #         print(cfg['loss_mode'])
+    #         num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
+    #         ACL=set(torch.arange(cfg['num_clients']).tolist())
+    #         ACL = ACL-set(supervised_clients)
+    #         # print(ACL)
+    #         # ran_CL = set(torch.randperm(cfg['num_clients']).tolist())
+    #         # ran_CL = [ran_CL-set(supervised_clients)]
+    #         client_id = random.sample(ACL,num_active_clients)
+    #         # print(client_id)
+    #         # client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
+    #         for i in range(num_active_clients):
+    #             client[client_id[i]].active = True
+    #         server.distribute(client,client_dataset_unsup)
+    #     elif epoch % 2 == 0:# and epoch <=270:
+    #         cfg['loss_mode'] = 'sup'
+    #         print(cfg['loss_mode'])
+    #         num_active_clients = len(supervised_clients)
+    #         client_id = supervised_clients
+    #         for i in range(num_active_clients):
+    #             client[client_id[i]].active = True
+    #         server.distribute(client,client_dataset_sup)
+    ################################
+    elif 'alt-fix_' in cfg['loss_mode']:
+        print('eeentered entered alt-fix mode')
+        if epoch % 5 == 0:# and epoch <=270:
+            cfg['loss_mode'] = 'sup'
+            print(cfg['loss_mode'])
+            num_active_clients = len(supervised_clients)
+            client_id = supervised_clients
+            for i in range(num_active_clients):
+                client[client_id[i]].active = True
+            server.distribute(client,client_dataset_sup)
+
+        else : # or epoch % 2 == 0:# or epoch >270:
+            cfg['loss_mode'] = 'bmd'
+            # cfg['loss_mode'] = 'fix-mix'
             print(cfg['loss_mode'])
             num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
             ACL=set(torch.arange(cfg['num_clients']).tolist())
@@ -302,14 +385,6 @@ def train_client(client_dataset_sup, client_dataset_unsup, server, client, super
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
             server.distribute(client,client_dataset_unsup)
-        elif epoch % 2 == 0:# and epoch <=270:
-            cfg['loss_mode'] = 'sup'
-            print(cfg['loss_mode'])
-            num_active_clients = len(supervised_clients)
-            client_id = supervised_clients
-            for i in range(num_active_clients):
-                client[client_id[i]].active = True
-            server.distribute(client,client_dataset_sup)
     # elif 'alt-fix' in cfg['loss_mode']:
     #     print('entered alt-fix mode')
     #     if epoch %2 == 0:
@@ -344,6 +419,7 @@ def train_client(client_dataset_sup, client_dataset_unsup, server, client, super
     lr = optimizer.param_groups[0]['lr']
     for i in range(num_active_clients):
         m = client_id[i]
+        print(f'traning client {m}')
         # print(type(client[m].data_split['train']))
         # print(client[m].supervised)
         if client[m].supervised ==  True:
