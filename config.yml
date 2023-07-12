@@ -38,3 +38,4 @@ DA : 1
 domain_s : 'dslr'
 domain_u : 'amazon'
 test_10_crop : False
+bt : 10

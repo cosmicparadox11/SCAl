@@ -81,8 +81,10 @@ def runExperiment():
     # transform_unsup = FixTransform(cfg['data_name_unsup'])
     # client_dataset_unsup['train'].transform = transform_unsup
     # print(cfg)
-    cfg['global']['batch_size']={'train':10,'test':50}
-    print(client_dataset_sup.keys())
+    bt = cfg['bt']
+    cfg['global']['batch_size']={'train':bt,'test':50}
+    print(cfg['global']['batch_size'])
+    # print(client_dataset_sup.keys())
     data_loader_sup = make_data_loader_DA(client_dataset_sup, 'global')
     # for input in data_loader_sup['train']:
     #     print(type(input['data'][0]))
