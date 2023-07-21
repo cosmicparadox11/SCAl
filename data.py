@@ -51,6 +51,7 @@ def fetch_dataset(data_name,domain = None):
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['office31']:
+        print(domain)
         # dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
         #                         'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         # dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
@@ -68,6 +69,7 @@ def fetch_dataset(data_name,domain = None):
                                 transform=crop_list[i]) for i in range(10)]
 
         else:
+            print('test_10crop disabled')
             resize_size = 256
             crop_size = 224
             dataset['test'] = datasets.office31(root=root, split='test',domain = domain,

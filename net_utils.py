@@ -66,8 +66,9 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
     # current VISDA-C k_seg is set to 3
     # topk_num = max(all_emd_feat.shape[0] // (args.class_num * args.topk_seg), 1)
     # print(all_emd_feat.shape[0])
-    topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] * 2), 1)
-    # print(topk_num)
+    print('target',cfg['target_size'],all_emd_feat.shape[0])
+    topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] * 3), 1)
+    print(topk_num)
     all_cls_out = torch.cat(cls_out_stack, dim=0)
     _, all_psd_label = torch.max(all_cls_out, dim=1)
     acc = torch.sum(all_gt_label == all_psd_label) / len(all_gt_label)
@@ -78,10 +79,10 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
     # multi_cent_num = 3 if 3<topk_num else 1
     # print(topk_num)
     # multi_cent_num = 3 if 3<=topk_num else 1
-    multi_cent_num = 1
+    multi_cent_num = 2
     # print(multi_cent_num)
-    feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num, cfg['resnet9']['hidden_size'][3])),cfg['device'])
-    faiss_kmeans = faiss.Kmeans(cfg['resnet9']['hidden_size'][3], multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)
+    feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num, cfg['embed_feat_dim'])),cfg['device'])
+    faiss_kmeans = faiss.Kmeans(cfg['embed_feat_dim'], multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)
     # print(faiss_kmeans)
     iter_nums = 2
     for iter in range(iter_nums):
@@ -261,7 +262,7 @@ class CrossEntropyLabelSmooth(nn.Module):
         self.reduction = reduction
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, inputs, targets, applied_softmax=True):
+    def forward(self, inputs, targets, applied_softmax=False):
         """
         Args:
             inputs: prediction matrix (after softmax) with shape (batch_size, num_classes)
@@ -278,8 +279,9 @@ class CrossEntropyLabelSmooth(nn.Module):
         
         targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
         loss = (- targets * log_probs).sum(dim=1)
-         
+        # print(loss)
         if self.reduction:
+            # print(loss)
             return loss.mean()
         else:
             return loss

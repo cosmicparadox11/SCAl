@@ -94,7 +94,33 @@ def runExperiment():
     #         print(i.shape)
     #     exit()
     # data_loader_unsup = make_data_loader(client_dataset_unsup, 'global')
-    model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    model = eval('models.{}()'.format(cfg['model_name']))
+    model_t = eval('models.{}()'.format(cfg['model_name']))
+    # print(model)
+    model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
+    model_t = convert_layers(model_t, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
+    model = model.to(cfg['device'])
+    model_t = model_t.to(cfg['device'])
+    print(model)
+    exit()
+    # print(model)
+    # exit()
+    # for name, module in model.named_modules():
+    #     print(name)
+    #     if isinstance(module, torch.nn.BatchNorm2d):
+    #         print(module.num_features)
+    #         # Get current bn layer
+    #         # bn = getattr(model, name)
+    #         # # Create new gn layer
+    #         # print(bn)
+    #         # k = eval('{}.{}.num_features'.format(model,name))
+    #         # print(k)
+    #         # gn = torch.nn.GroupNorm(2, bn.num_features)
+    #         # # Assign gn
+    #         # print('Swapping {} with {}'.format(bn, gn))
+    #         # setattr(model, name, gn)
+    # exit()
+    # print(model)
     # net = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     # print(model)
     # print(cfg['local'].keys())
@@ -131,11 +157,16 @@ def runExperiment():
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
         # print(list(model.buffers()))
-        test_model = make_batchnorm_stats(client_dataset_sup['train'], model, cfg['model_name'])
+        #===#
+        # model_t = make_batchnorm_stats(client_dataset_sup['train'], model, cfg['model_name'])
+        #====#
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
-        test_DA(data_loader_sup['test'], test_model, metric, logger, epoch)
+        #====#
+        model_t.load_state_dict(model.state_dict())
+        #====#
+        test_DA(data_loader_sup['test'], model_t, metric, logger, epoch)
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
@@ -357,6 +388,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         input['loss_mode'] = cfg['loss_mode']
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
+        # print(output['loss'])
         output['loss'].backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
@@ -539,6 +571,24 @@ def test_DA(data_loader, model, metric, logger, epoch):
 
     return
 
+def convert_layers(model, layer_type_old, layer_type_new, num_groups,convert_weights=False):
+    for name, module in reversed(model._modules.items()):
+        if len(list(module.children())) > 0:
+            # recurse
+            model._modules[name] = convert_layers(module, layer_type_old, layer_type_new, convert_weights)
 
+        if type(module) == layer_type_old:
+            layer_old = module
+            # layer_new = layer_type_new(module.num_features if num_groups is None else num_groups, module.num_features, module.eps, module.affine) 
+            layer_new = layer_type_new(2, module.num_features, module.eps, module.affine) 
+
+
+            if convert_weights:
+                layer_new.weight = layer_old.weight
+                layer_new.bias = layer_old.bias
+
+            model._modules[name] = layer_new
+
+    return model
 if __name__ == "__main__":
     main()

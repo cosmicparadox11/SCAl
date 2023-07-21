@@ -1480,7 +1480,7 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
                 dist += np.sqrt(np.sum((avg_ci-ci)**2,axis=0))
             loss += dist/avg_cent.shape[0]
 
-
+        optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()

@@ -107,20 +107,22 @@ def recur(fn, input, *args):
 
 
 def process_dataset(dataset,dataset_unsup= None):
-    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['train'])}
+    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
+    print(cfg['data_size'])
     cfg['target_size'] = dataset['train'].target_size
     if dataset_unsup is not None:
-        cfg['data_size_unsup'] = {'train': len(dataset_unsup['train']), 'test': len(dataset_unsup['train'])}
+        cfg['data_size_unsup'] = {'train': len(dataset_unsup['train']), 'test': len(dataset_unsup['test'])}
         cfg['target_size_unsup'] = dataset_unsup['train'].target_size
+        print(cfg['data_size_unsup'])
 
     return
 def process_dataset_multi(dataset,dataset_unsup_dict= None):
-    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['train'])}
+    cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
     cfg['target_size'] = dataset['train'].target_size
     if dataset_unsup_dict is not None:
         for domain_id,dataset_unsup in dataset_unsup_dict.items():
             domain = cfg['unsup_list'][domain_id]
-            cfg[f'data_size_unsup_{domain}'] = {'train': len(dataset_unsup['train']), 'test': len(dataset_unsup['train'])}
+            cfg[f'data_size_unsup_{domain}'] = {'train': len(dataset_unsup['train']), 'test': len(dataset_unsup['test'])}
             cfg[f'target_size_unsup_{domain}'] = dataset_unsup['train'].target_size
 
     return
