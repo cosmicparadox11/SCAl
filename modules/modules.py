@@ -31,9 +31,13 @@ class Server:
         self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
     def compute_dist(self,w1_in,w2_in,crit):
         if crit == 'mse':
-            return torch.mean((w1_in.reshape(-1).detach() - w2_in.reshape(-1).detach())**2)
+            # return torch.mean((w1_in.reshape(-1).detach() - w2_in.reshape(-1).detach())**2)
+            return  torch.norm((w1_in.reshape(-1) - w2_in.reshape(-1)),0.9)
         elif crit == 'mae':
             return torch.mean(torch.abs(w1_in.reshape(-1).detach() - w2_in.reshape(-1).detach()))
+            #num = torch.sum((prev_global_p - client_p)**2)
+            
+        
 
 
     def compute_l2d_ratio(self,prev_g,valid_client,avg_model,crit='mse'):
@@ -55,9 +59,11 @@ class Server:
                 for m in range(len(valid_client)):
                     num = self.compute_dist(valid_client[m].model_state_dict[k],param_prev_g[k],crit)
                     den = self.compute_dist(valid_client[m].model_state_dict[k],param_avg[k],crit)
-                    ll_div_weights[k].append(torch.exp(0.1*num/(den+1e-5)))
+                    ll_div_weights[k].append(torch.exp(0.9*(num-den)))
+                    # ll_div_weights[k].append(torch.exp(0.1*num/(den+1e-5)))
             #print("ll_div_weights[k]:",ll_div_weights[k])
             ll_div_weights[k] = torch.div(torch.Tensor(ll_div_weights[k]),sum(ll_div_weights[k]))
+            # ll_div_weights[k] = torch.div(torch.Tensor(ll_div_weights[k]),sum(ll_div_weights[k]))
             #print("ll_div_weights[k]:",ll_div_weights[k])
          
         return ll_div_weights
@@ -85,7 +91,7 @@ class Server:
                         client[m].avg_cent = self.avg_cent
                     else:
                         client[m].avg_cent = None
-                        print('ERROR:server.avg_cent is None')
+                        print('Warning:server.avg_cent is None')
         return
     def distribute_fix_model(self, client, batchnorm_dataset=None):
         # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
@@ -215,6 +221,7 @@ class Server:
                     weight = torch.ones(len(valid_client))
                     weight = weight / weight.sum()
                     for k, v in model.named_parameters():
+                        # print(k)
                         parameter_type = k.split('.')[-1]
                         if 'weight' in parameter_type or 'bias' in parameter_type:
                             tmp_v = v.data.new_zeros(v.size())
@@ -227,12 +234,12 @@ class Server:
                     self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
 
         elif cfg['adapt_wt'] == 1:
+            print('dynamic aggregation')
             with torch.no_grad():
                 valid_client = [client[i] for i in range(len(client)) if client[i].active]
                 if len(valid_client) > 0:
                     model = eval('models.{}()'.format(cfg['model_name']))
                     model.load_state_dict(self.model_state_dict)
-                   
                     prev_model = copy.deepcopy(model)
 
                     global_optimizer = make_optimizer(model.parameters(), 'global')
@@ -256,7 +263,8 @@ class Server:
                     
 
                     ###### compute the adaptive weights ######
-                    weight_dict = self.compute_l2d_ratio(prev_model,valid_client,avg_model,'mse')
+                    weight_dict = self.compute_l2d_ratio(prev_model,valid_client,avg_model,'mae')
+                    # weight_dict = self.compute_l2d_ratio(prev_model,valid_client,avg_model,'mse')
 
                     global_optimizer = make_optimizer(prev_model.parameters(), 'global')
                     global_optimizer.load_state_dict(self.global_optimizer_state_dict)
@@ -275,14 +283,18 @@ class Server:
         else:
             raise ValueError('Not valid loss mode')
         if cfg['avg_cent'] == 1:
+            count=0
             for i in range(len(client)):
+                # print(i)
+                # print(self.avg_cent,client[i].cent)
                 if client[i].active == True and client[i].cent is not None:
-                    if i==0:
+                    if count==0:
                         self.avg_cent=client[i].cent
+                        count+=1
                     else:
                         self.avg_cent+=client[i].cent
-                elif client[i].cent is None:
-                    print('client cent is None')
+                elif client[i].active == True  and client[i].cent is None:
+                    print('Warning:client centntroid is None')
             if self.avg_cent is not None:
                 self.avg_cent=self.avg_cent/len(client)
 
@@ -1427,11 +1439,14 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         #     plt.show()
         #     exit()
     model.train()
+    cent = glob_multi_feat_cent
     epoch_idx=epoch
     for i, input in enumerate(train_data_loader):
         # print(i)
         input = collate(input)
         input_size = input['data'].size(0)
+        if input_size<=1:
+            break
         input['loss_mode'] = cfg['loss_mode']
         input = to_device(input, cfg['device'])
         optimizer.zero_grad()
@@ -1476,8 +1491,11 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         # print(cent.shape,avg_cent.shape)
         if cfg['avg_cent'] and avg_cent is not None:
             dist=0
+            # print(avg_cent.shape,cent.shape)
             for avg_ci,ci in zip(avg_cent.squeeze(),cent.squeeze()):
-                dist += np.sqrt(np.sum((avg_ci-ci)**2,axis=0))
+                # print(avg_ci.shape,ci.shape)
+                # dist += np.sqrt(np.sum((avg_ci-ci)**2,axis=0))
+                dist+=torch.norm((avg_ci.detach().reshape(-1) - ci.detach().reshape(-1)),0.9)
             loss += dist/avg_cent.shape[0]
 
         optimizer.zero_grad()

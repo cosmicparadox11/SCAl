@@ -79,7 +79,7 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
     # multi_cent_num = 3 if 3<topk_num else 1
     # print(topk_num)
     # multi_cent_num = 3 if 3<=topk_num else 1
-    multi_cent_num = 2
+    multi_cent_num = 1
     # print(multi_cent_num)
     feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num, cfg['embed_feat_dim'])),cfg['device'])
     faiss_kmeans = faiss.Kmeans(cfg['embed_feat_dim'], multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)

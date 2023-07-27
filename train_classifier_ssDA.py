@@ -100,6 +100,7 @@ def runExperiment():
     # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     if cfg['world_size']==1:
         model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+        test_model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     elif cfg['world_size']>1:
         cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = eval('models.{}()'.format(cfg['model_name']))
@@ -228,7 +229,10 @@ def runExperiment():
         model.load_state_dict(server.model_state_dict)
         #needs to be removed for final clean up
 
-        test_model = make_batchnorm_stats_DA( model, 'global')
+        # test_model = make_batchnorm_stats_DA( model, 'global')
+        #====#
+        test_model.load_state_dict(model.state_dict())
+        #====#
         test_DA(data_loader_sup['test'], test_model, metric, logger, epoch,sup=True)
         for domain_id,data_loader_unsup_ in data_loader_unsup.items():
             domain = cfg['unsup_list'][domain_id]

@@ -79,8 +79,8 @@ class Embedding(nn.Module):
     def __init__(self, feature_dim, embed_dim=256, type="ori"):
     
         super(Embedding, self).__init__()
-        # self.bn = nn.BatchNorm1d(embed_dim, affine=True)
-        self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
+        self.bn = nn.BatchNorm1d(embed_dim, affine=True)
+        # self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
         self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=0.5)
         self.bottleneck = nn.Linear(feature_dim, embed_dim)
@@ -88,6 +88,7 @@ class Embedding(nn.Module):
         self.type = type
 
     def forward(self, x):
+        # print(self.bottleneck,x.shape)
         x = self.bottleneck(x)
         if self.type == "bn":
             x = self.bn(x)
