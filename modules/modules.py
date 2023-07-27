@@ -194,10 +194,11 @@ class Server:
                     weight = weight / weight.sum()
 
                     # Store the averaged batchnorm parameters
-                    bn_parameters = {k: None for k, v in model.named_parameters() if 'bn' in k}
+                    bn_parameters = {k: None for k, v in model.named_parameters() if isinstance(v, torch.nn.BatchNorm2d)}
 
                     for k, v in model.named_parameters():
                         # print(k)
+                        isBatchNorm = isinstance(v, torch.nn.BatchNorm2d)
                         parameter_type = k.split('.')[-1]
                         # print(f'{k} with parameter type {parameter_type}')
                         if 'weight' in parameter_type or 'bias' in parameter_type:
@@ -209,7 +210,7 @@ class Server:
                                     tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
                             v.grad = (v.data - tmp_v).detach()
 
-                        elif 'bn' in k:
+                        elif isBatchNorm:
                             # Accumulate BatchNorm parameters for averaging
                             if bn_parameters[k] is None:
                                 bn_parameters[k] = weight[0] * valid_client[0].model_state_dict[k].clone()
@@ -222,7 +223,7 @@ class Server:
 
                     # Update the averaged batchnorm parameters back to the server model
                     for k, v in model.named_parameters():
-                        if 'bn' in k:
+                        if isinstance(v, torch.nn.BatchNorm2d):
                             v.data = bn_parameters[k]
 
                     self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
