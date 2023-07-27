@@ -19,8 +19,11 @@ from logger import make_logger
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:
+    if k == 'control_name':
+        continue
     exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
 parser.add_argument('--control_name', default=None, type=str)
+# args['contral_name']
 args = vars(parser.parse_args())
 process_args(args)
 
