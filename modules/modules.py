@@ -11,6 +11,7 @@ from config import cfg
 from data import make_data_loader, make_batchnorm_stats, FixTransform, MixDataset
 from .utils import init_param, make_batchnorm, loss_fn ,info_nce_loss, SimCLR_Loss,elr_loss
 from utils import to_device, make_optimizer, collate, to_device
+from train_centralDA_target import op_copy
 from metrics import Accuracy
 from net_utils import set_random_seed
 from net_utils import init_multi_cent_psd_label
@@ -185,6 +186,10 @@ class Server:
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     weight = weight / weight.sum()
+
+                    # Store the averaged batchnorm parameters
+                    bn_parameters = {k: None for k, v in model.named_parameters() if 'bn' in k}
+
                     for k, v in model.named_parameters():
                         # print(k)
                         parameter_type = k.split('.')[-1]
@@ -197,9 +202,23 @@ class Server:
                                 elif  cfg['world_size']>1:
                                     tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
                             v.grad = (v.data - tmp_v).detach()
+
+                        elif 'bn' in k:
+                            # Accumulate BatchNorm parameters for averaging
+                            if bn_parameters[k] is None:
+                                bn_parameters[k] = weight[0] * valid_client[0].model_state_dict[k].clone()
+                            for m in range(1, len(valid_client)):
+                                bn_parameters[k] += weight[m] * valid_client[m].model_state_dict[k].clone()
+
                     # module = model.layer1[0].n1
                     # print(list(module.named_buffers()))
                     global_optimizer.step()
+
+                    # Update the averaged batchnorm parameters back to the server model
+                    for k, v in model.named_parameters():
+                        if 'bn' in k:
+                            v.data = bn_parameters[k]
+
                     self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
                     self.model_state_dict = save_model_state_dict(model.state_dict())
                     # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
@@ -1199,8 +1218,29 @@ class Client:
                 model.to(cfg["device"])
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
-            optimizer = make_optimizer(model.parameters(), 'local')
-            optimizer.load_state_dict(self.optimizer_state_dict)
+
+            if cfg['model_name'] == 'SFDA':
+                cfg['local']['lr'] = 1e-2
+                param_group = []
+                for k, v in model.backbone_layer.named_parameters():
+                    print(k)
+                    if "bn" in k:
+                        param_group += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
+                    else:
+                        v.requires_grad = False
+
+                for k, v in model.feat_embed_layer.named_parameters():
+                    print(k)
+                    param_group += [{'params': v, 'lr': cfg['local']['lr']}]
+                for k, v in model.class_layer.named_parameters():
+                    v.requires_grad = False
+
+                optimizer = make_optimizer(param_group, 'local')
+                optimizer = op_copy(optimizer)
+            else:
+                optimizer = make_optimizer(model.parameters(), 'local')
+                optimizer.load_state_dict(self.optimizer_state_dict)
+
             model.train(True)
             # if cfg['world_size']==1:
             #     model.projection.requires_grad_(False)

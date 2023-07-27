@@ -636,7 +636,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
 
     elif 'alt-fix_' in cfg['loss_mode']:
         print('eeentered entered alt-fix mode')
-        if epoch== 0:# and epoch <=270:
+        if epoch % 4 == 0:# and epoch <=270: // alternate training
             cfg['loss_mode'] = 'sup'
             print(cfg['loss_mode'])
             num_active_clients = len(supervised_clients)

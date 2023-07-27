@@ -48,6 +48,7 @@ def fetch_dataset(data_name,domain = None):
             transforms.ToTensor()])
         dataset['test'].transform = datasets.Compose([
             transforms.Grayscale(num_output_channels=3),
+            transforms.Resize(32),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['office31']:
@@ -124,6 +125,7 @@ def fetch_dataset(data_name,domain = None):
             transforms.Normalize(*data_stats[data_name])])
         dataset['test'].transform = datasets.Compose([
             # transforms.Grayscale(num_output_channels=1),
+            transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
             # transforms.Normalize((0.5), (0.5))])
@@ -448,7 +450,9 @@ def make_batchnorm_stats(dataset, model, tag):
 
 def make_batchnorm_stats_DA(model, tag):
     with torch.no_grad():
-        test_model = copy.deepcopy(model)
+        test_model = eval('models.{}()'.format(cfg['model_name']))
+        test_model.to(cfg['device'])
+        test_model.load_state_dict(model.state_dict())
         test_model.apply(lambda m: models.make_batchnorm(m, momentum=0.1, track_running_stats=True))
     return test_model
 class FixTransform(object):
