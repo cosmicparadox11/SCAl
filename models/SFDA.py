@@ -79,8 +79,8 @@ class Embedding(nn.Module):
     def __init__(self, feature_dim, embed_dim=256, type="ori"):
     
         super(Embedding, self).__init__()
-        self.bn = nn.BatchNorm1d(embed_dim, affine=True)
-        # self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
+        # self.bn = nn.BatchNorm1d(embed_dim, affine=True)
+        self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
         self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=0.5)
         self.bottleneck = nn.Linear(feature_dim, embed_dim)
@@ -171,9 +171,10 @@ class SFDA(nn.Module):
         
         self.backbone_feat_dim = self.backbone_layer.backbone_feat_dim
         
-        self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
+        # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
         
-        self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
+        # self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
+        self.class_layer = Classifier(self.backbone_feat_dim, class_num=self.class_num)
     
     def get_emd_feat(self, input_imgs):
         # input_imgs [B, 3, H, W]
@@ -185,16 +186,18 @@ class SFDA(nn.Module):
         
         # input_imgs [B, 3, H, W]
         backbone_feat = self.backbone_layer(input_imgs)
+        # print(backbone_feat.shape)
+        # embed_feat = self.feat_embed_layer(backbone_feat)
         
-        embed_feat = self.feat_embed_layer(backbone_feat)
-        
-        cls_out = self.class_layer(embed_feat)
+        # cls_out = self.class_layer(embed_feat)
+        cls_out = self.class_layer(backbone_feat)
         if apply_softmax:
             cls_out = torch.softmax(cls_out, dim=1)
         else:
             pass
         
-        return embed_feat, cls_out
+        # return embed_feat, cls_out
+        return backbone_feat,cls_out
     def forward(self, input):
         output = {}
         # print(cfg['loss_mode'])
@@ -346,7 +349,15 @@ class SFDA(nn.Module):
                 criterion = CrossEntropyLabelSmooth(num_classes=cfg['target_size'], epsilon=0.1, reduction=True)
                 output['loss'] = criterion(output['target'], input['target'])
         return output
-
+def resnet_sfda(momentum=None, track=True):
+    data_shape = cfg['data_shape']
+    target_size = cfg['target_size']
+    hidden_size = cfg['resnet9']['hidden_size']
+    # model = ResNet(data_shape, hidden_size, Block, [1, 1, 1, 1], target_size)
+    model = SFDA()
+    # model.apply(init_param)
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+    return model
 if __name__ == "__main__":
     
     import argparse

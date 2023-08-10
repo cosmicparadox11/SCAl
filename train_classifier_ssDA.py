@@ -207,6 +207,7 @@ def runExperiment():
         logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
     cfg['global']['num_epochs'] = cfg['cycles']  
     mode = cfg['loss_mode']
+    print(model)
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         if mode == 'sim-ft-fix' or mode == 'sup-ft-fix':
             # print('entered fix-mix',epoch)
@@ -232,10 +233,12 @@ def runExperiment():
         logger.reset()
         server.update(client)
         scheduler.step()
-        model.load_state_dict(server.model_state_dict)
-        #needs to be removed for final clean up
 
-        # test_model = make_batchnorm_stats_DA( model, 'global')
+        model.load_state_dict(server.model_state_dict)
+        # print(model)
+        #needs to be removed for final clean up
+        # print(server.model_state_dict.keys())
+        # test_model = make_batchnorm_stats(client_dataset_sup['train'],model, 'global')
         #====#
         test_model.load_state_dict(model.state_dict())
         #====#
@@ -356,7 +359,6 @@ def make_client_DA(model, data_split_sup,data_split_unsup,split_len=None):
 
 def train_client(client_dataset_sup, client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode):
     logger.safe(True)
-    print('ppppppppppppppppppppppp')
     if 'ft' in cfg['loss_mode']:
         if epoch <= cfg['switch_epoch']:
             num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
@@ -586,6 +588,7 @@ def train_client(client_dataset_sup, client_dataset_unsup, server, client, super
 
 def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode):
     logger.safe(True)
+    domains=[]
     if 'ft' in cfg['loss_mode']:
         if epoch <= cfg['switch_epoch']:
             num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
@@ -650,8 +653,9 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             server.distribute(client,client_dataset_sup)
 
     elif 'alt-fix_' in cfg['loss_mode']:
-        print('eeentered entered alt-fix mode')
+        print('entered entered alt-fix mode')
         if epoch ==0:# and epoch <=270: // alternate training
+            domains=[]
             cfg['loss_mode'] = 'sup'
             print(cfg['loss_mode'])
             num_active_clients = len(supervised_clients)
@@ -659,9 +663,11 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
             server.distribute(client,client_dataset_sup)
+            domains.append(client[client_id[i]].domain)
 
         else : # or epoch % 2 == 0:# or epoch >270:
             cfg['loss_mode'] = 'bmd'
+            domains=[]
             # cfg['loss_mode'] = 'fix-mix'
             print(cfg['loss_mode'])
             num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
@@ -675,9 +681,11 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             # client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
             for i in range(num_active_clients):
                 client[client_id[i]].active = True
+                domains.append(client[client_id[i]].domain)
             server.distribute(client,client_dataset_unsup)
 
     print(f'traning the following clients {client_id}')
+    print(f'corresponding domains{domains}')
     # server.distribute(client,batchnorm_dataset)
     if cfg['kl_loss'] ==1 and epoch==cfg['switch_epoch']:
         server.distribute_fix_model(client,batchnorm_dataset)

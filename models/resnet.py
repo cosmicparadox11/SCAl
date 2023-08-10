@@ -13,8 +13,10 @@ class Block(nn.Module):
     def __init__(self, in_planes, planes, stride):
         super(Block, self).__init__()
         self.n1 = nn.GroupNorm(num_groups=2,num_channels=in_planes)
+        # self.n1 = nn.BatchNorm2d(in_planes)
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.n2 = nn.GroupNorm(num_groups=2,num_channels=planes)
+        # self.n2 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         if stride != 1 or in_planes != self.expansion * planes:
             self.shortcut = nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False)
@@ -101,18 +103,58 @@ class ProjectionHead(nn.Module):
     def forward(self,x):
         x = self.layers(x)
         return x
+class Embedding(nn.Module):
     
+    def __init__(self, feature_dim, embed_dim=256, type="ori"):
+    
+        super(Embedding, self).__init__()
+        # self.bn = nn.BatchNorm1d(embed_dim, affine=True)
+        self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(p=0.5)
+        self.bottleneck = nn.Linear(feature_dim, embed_dim)
+        # self.bottleneck.apply(init_weights)
+        self.type = type
+
+    def forward(self, x):
+        # print(self.bottleneck,x.shape)
+        x = self.bottleneck(x)
+        if self.type == "bn":
+            x = self.bn(x)
+        return x 
+class Classifier(nn.Module):
+    def __init__(self, embed_dim, class_num, type="linear"):
+        super(Classifier, self).__init__()
+        
+        self.type = type
+        if type == 'wn':
+            self.fc = nn.utils.weight_norm(nn.Linear(embed_dim, class_num), name="weight")
+            # self.fc.apply(init_weights)
+        else:
+            self.fc = nn.Linear(embed_dim, class_num)
+            # self.fc.apply(init_weights)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return x
 class ResNet(nn.Module):
     def __init__(self, data_shape, hidden_size, block, num_blocks, target_size,sim_out=int(128)):
         super().__init__()
         self.in_planes = hidden_size[0]
+        self.backbone_feat_dim = 512
+        self.embed_feat_dim  = 256
+        self.class_num = cfg['target_size']
         self.conv1 = nn.Conv2d(data_shape[0], hidden_size[0], kernel_size=3, stride=1, padding=1, bias=False)
         self.layer1 = self._make_layer(block, hidden_size[0], num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, hidden_size[1], num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, hidden_size[2], num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, hidden_size[3], num_blocks[3], stride=2)
         self.n4 = nn.GroupNorm(num_groups=2,num_channels=hidden_size[3] * block.expansion)
+        # self.n4 = nn.BatchNorm2d(hidden_size[3] * block.expansion)
         self.linear = nn.Linear(hidden_size[3] * block.expansion, target_size)
+        # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
+        
+        # self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
         # self.projection = ProjectionHead(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion,sim_out)
         # self.projection = nn.Sequential(nn.Linear(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion),
         #                                 nn.ReLU(),
@@ -148,7 +190,9 @@ class ResNet(nn.Module):
         x = F.adaptive_avg_pool2d(x, 1)
         x = x.view(x.size(0), -1)
         f = x
+        # f = self.feat_embed_layer(x)
         x = self.linear(x)
+        # x = self.class_layer(f)
         if apply_softmax:
             x = torch.softmax(x, dim=1)
         else:
@@ -347,7 +391,8 @@ class ResNet(nn.Module):
         return output
 
 
-def resnet9(momentum=None, track=False):
+# def resnet9(momentum=None, track=False):
+def resnet9(momentum=None, track=True):
     data_shape = cfg['data_shape']
     target_size = cfg['target_size']
     hidden_size = cfg['resnet9']['hidden_size']
@@ -357,8 +402,8 @@ def resnet9(momentum=None, track=False):
     return model
 
 
-# def resnet18(momentum=None, track=False):
-def resnet18(momentum=0.1, track=True):
+def resnet18(momentum=None, track=False):
+# def resnet18(momentum=0.1, track=True):
     data_shape = cfg['data_shape']
     target_size = cfg['target_size']
     hidden_size = cfg['resnet18']['hidden_size']

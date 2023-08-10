@@ -211,6 +211,44 @@ class Server:
                                     tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
                             v.grad = (v.data - tmp_v).detach()
 
+                    # for k, v in model.named_buffers():
+                    #     # print(k)
+                    #     parameter_type = k.split('.')[-1]
+                    #     # print(f'{k} with parameter type {parameter_type}')
+                    #     if 'running_mean' in parameter_type or 'running_mean' in parameter_type:
+                    #         # print(k)
+                    #         tmp_v = v.data.new_zeros(v.size())
+                    #         for m in range(len(valid_client)):
+                    #             if cfg['world_size']==1:
+                    #                 tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+                    #             elif  cfg['world_size']>1:
+                    #                 tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
+                    #         v.grad = (v.data - tmp_v).detach()
+                    #         v.data = v.data-1*v.grad
+                        # else :
+                        #     print(k)
+                        #     tmp_v = v.data.new_zeros(v.size())
+                        #     for m in range(len(valid_client)):
+                        #         if cfg['world_size']==1:
+                        #             tmp_v += valid_client[m].model_state_dict[k]
+                        #         elif  cfg['world_size']>1:
+                        #             tmp_v += valid_client[m].model_state_dict[k].to(cfg["device"])
+                        #     # print(tmp_v)
+                        #     v.data = (tmp_v//len(valid_client)).detach()
+
+
+                        # isBatchNorm = isinstance(v, torch.nn.BatchNorm2d)
+                        # parameter_type = k.split('.')[-1]
+                        # # print(f'{k} with parameter type {parameter_type}')
+                        # if 'weight' in parameter_type or 'bias' in parameter_type:
+                        #     tmp_v = v.data.new_zeros(v.size())
+                        #     for m in range(len(valid_client)):
+                        #         if cfg['world_size']==1:
+                        #             tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+                        #         elif  cfg['world_size']>1:
+                        #             tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
+                        #     v.grad = (v.data - tmp_v).detach()
+
                         # elif isBatchNorm:
                         #     print(k)
                         #     # Accumulate BatchNorm parameters for averaging
@@ -854,7 +892,9 @@ class Client:
                 model = torch.nn.DataParallel(model,device_ids = [0, 1])
                 model.to(cfg["device"])
             # model.load_state_dict(self.model_state_dict, strict=False)
+            # print(model.layer4[0].n2.running_mean)
             model.load_state_dict(self.model_state_dict)
+            # print(model.layer4[0].n2.running_mean)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             optimizer = make_optimizer(model.parameters(), 'local')
             optimizer.load_state_dict(self.optimizer_state_dict)
@@ -886,6 +926,7 @@ class Client:
                     logger.append(evaluation, 'train', n=input_size)
                     if num_batches is not None and i == num_batches - 1:
                         break
+            # print(model.layer4[0].n2.running_mean)
         elif 'sim' in cfg['loss_mode']:
             _,_,dataset = dataset
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
@@ -1239,7 +1280,7 @@ class Client:
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
 
             if cfg['model_name'] == 'SFDA':
-                cfg['local']['lr'] = 1e-2
+                cfg['local']['lr'] = lr
                 param_group = []
                 for k, v in model.backbone_layer.named_parameters():
                     # print(k)
@@ -1256,10 +1297,39 @@ class Client:
 
                 optimizer = make_optimizer(param_group, 'local')
                 optimizer = op_copy(optimizer)
+
+            # elif cfg['model_name']=='resnet9':
+            #     cfg['local']['lr'] = lr
+            #     # print(model)
+            #     param_group = []
+            #     for k,v in model.named_parameters():
+            #         # print(k)
+            #         if 'n1' in k or 'n2' in k or 'n4' in k or 'bn' in k:
+            #             # print(k)
+            #             param_group += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
+            #         elif 'feat_embed_layer' in k:
+            #             print(k)
+            #             # v.requires_grad = False
+            #             param_group += [{'params': v, 'lr': cfg['local']['lr']}]
+            #         else :
+            #             print('grad false',k)
+            #             v.requires_grad = False
+            #     # for k, v in model.feat_embed_layer.named_parameters():
+            #     #     # print(k)
+            #     #     if 'n1' not in k or 'n2' not in k or 'n4' not in k or 'bn' not in k:
+            #     #         print(k)
+            #     #         param_group += [{'params': v, 'lr': cfg['local']['lr']}]
+
+            #     # for k, v in model.class_layer.named_parameters():
+            #     #     v.requires_grad = False
+            #     optimizer = make_optimizer(param_group, 'local')
+            #     optimizer = op_copy(optimizer)
+                # exit()
             else:
+                # print('not freezing')
                 optimizer = make_optimizer(model.parameters(), 'local')
                 optimizer.load_state_dict(self.optimizer_state_dict)
-
+            # print(model)
             model.train(True)
             # if cfg['world_size']==1:
             #     model.projection.requires_grad_(False)
@@ -1272,7 +1342,13 @@ class Client:
                 num_batches = None
             # num_batches =None
             # for epoch in range(1, cfg['client']['num_epochs']+1 ):
-            for epoch in range(0, cfg['client']['num_epochs'] ):
+            print(self.client_id,self.domain)
+            if self.domain == 'webcam':
+                num_local_epochs = cfg['tde']
+            else:
+                num_local_epochs = cfg['client']['num_epochs']
+            print(num_local_epochs)
+            for epoch in range(0, num_local_epochs ):
                 # data_loader = make_data_loader({'train': dataset}, 'client')['train']
                 # with torch.no_grad():
                 #     model.eval()
@@ -1515,7 +1591,8 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         psd_loss = - torch.sum(torch.log(pred_cls) * psd_label, dim=1).mean()
         # print(epoch_idx)
         # if epoch_idx >= 1.0:
-        #     loss = ent_loss + 2.0 * psd_loss
+        #     loss = 2.0 * psd_loss
+        #     # loss = ent_loss + 1.0 * psd_loss
         # else:
         #     loss = - reg_loss + ent_loss
         # print(loss)

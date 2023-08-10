@@ -85,7 +85,7 @@ def runExperiment():
     # client_dataset_unsup['train'].transform = transform_unsup
     # print(cfg)
     bt = cfg['bt']
-    cfg['global']['batch_size']={'train':bt,'test':50}
+    cfg['global']['batch_size']={'train':bt,'test':10}
     print(cfg['global']['batch_size'])
     # print(client_dataset_sup.keys())
     data_loader_sup = make_data_loader_DA(client_dataset_sup, 'global')
@@ -98,8 +98,10 @@ def runExperiment():
     model = eval('models.{}()'.format(cfg['model_name']))
     model_t = eval('models.{}()'.format(cfg['model_name']))
     # print(model)
-    # model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
-    # model_t = convert_layers(model_t, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
+    model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
+    model_t = convert_layers(model_t, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
+    model = convert_layers(model, torch.nn.BatchNorm1d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
+    model_t = convert_layers(model_t, torch.nn.BatchNorm1d, torch.nn.GroupNorm, num_groups = 2,convert_weights=False)
     # model.apply(init_param)
     # model_t.apply(init_param)
     model = model.to(cfg['device'])
