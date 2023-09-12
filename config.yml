@@ -12,7 +12,7 @@ control:
   ft: '1'
   switch_epoch : 0
 # data
-data_name: MNIST
+data_name: SYN32
 data_name_unsup : MNIST
 model_name: resnet18
 # experiment
@@ -41,12 +41,16 @@ domain_u : 'amazon'
 unsup_list : ["MNIST_M"]
 unsup_doms : 'MNIST_M-USPS'
 test_10_crop : False
-bt : 10
+bt : 250
 adapt_wt : 0
 avg_cent : 0
+avg_cent_alpha: 0.5
 backbone_arch : 'resnet50'
 embed_feat_dim : 256
 tde : 5
 pre_trained : 1
 gamma : 0.1
 decay : 0.9
+# SYN32 dataset
+# Max limit for total dataset size
+syn_max_train: 50000

@@ -68,7 +68,7 @@ def runExperiment():
     for i ,domain in enumerate(cfg['unsup_list']):
         # print(i,domain)
         print('fetching unsupervised domains')
-        if domain in ['MNIST','USPS','SVHN','MNIST_M']:
+        if domain in ['MNIST','USPS','SVHN','MNIST_M', 'SYN32']:
             cfg['data_name_unsup'] = domain
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'])
         elif domain in ['dslr','webcam','amazon']:

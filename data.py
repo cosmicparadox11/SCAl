@@ -20,10 +20,9 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
             # 'SVHN':((0.5,),
             #                  (0.5,)),
               'STL10': ((0.4409, 0.4279, 0.3868), (0.2683, 0.2610, 0.2687)),
-              'USPS':((0.5,),
-                             (0.5,)),
-               'office31':([0.485, 0.456, 0.406],
-                                   [0.229, 0.224, 0.225])}
+              'USPS':((0.5,), (0.5,)),
+              'office31':([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'SYN32': ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))}
             #    'dslr':([0.485, 0.456, 0.406],
             #                        [0.229, 0.224, 0.225]),
             #    'webcam':([0.485, 0.456, 0.406],
@@ -112,7 +111,7 @@ def fetch_dataset(data_name,domain = None):
         dataset['test'].transform = datasets.Compose([
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-    elif data_name in ['SVHN','MNIST_M']:
+    elif data_name in ['SVHN','MNIST_M','SYN32']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
@@ -479,7 +478,7 @@ class FixTransform(object):
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
             ])
-        elif data_name in ['SVHN','MNIST_M']:
+        elif data_name in ['SVHN','MNIST_M','SYN32']:
             self.normal = transforms.Compose(
                                 [
                                 # transforms.Grayscale(),

@@ -1624,7 +1624,7 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
                 # print(avg_ci.shape,ci.shape)
                 # dist += np.sqrt(np.sum((avg_ci-ci)**2,axis=0))
                 dist+=torch.norm((avg_ci.detach().reshape(-1) - ci.detach().reshape(-1)),0.9)
-            loss += dist/avg_cent.shape[0]
+            loss += cfg['avg_cent_alpha'] * dist/avg_cent.shape[0]
 
         optimizer.zero_grad()
         loss.backward()

@@ -135,7 +135,7 @@ def process_control():
     # data_shape = {'MNIST': [1, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
     #               'SVHN': [3, 32, 32]}
     data_shape = {'MNIST': [3, 28, 28],'MNIST_M': [3, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
-                  'SVHN': [3, 32, 32],'USPS':[3,16,16],'office31':[3,1000,1000], 'amazon':[3,300,300],'webcam':[3,477,477]}
+                  'SVHN': [3, 32, 32],'USPS':[3,16,16],'SYN32': [3, 32, 32], 'office31':[3,1000,1000], 'amazon':[3,300,300],'webcam':[3,477,477]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [32, 64]}
     cfg['lenet'] = {'hidden_size': [20, 50]}
@@ -168,7 +168,7 @@ def process_control():
         cfg['server']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][1])))
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
-        cfg['client']['batch_size'] = {'train': 10, 'test': 50}
+        cfg['client']['batch_size'] = {'train': 250, 'test': 50}
         cfg['client']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][0])))
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
@@ -177,7 +177,7 @@ def process_control():
         cfg['local']['weight_decay'] = 5e-4
         cfg['local']['nesterov'] = True
         cfg['global'] = {}
-        cfg['global']['batch_size'] = {'train': 10, 'test': 50}
+        cfg['global']['batch_size'] = {'train': 250, 'test': 50}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
         cfg['global']['num_epochs'] = 150
         cfg['global']['optimizer_name'] = 'SGD'
