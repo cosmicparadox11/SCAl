@@ -1664,7 +1664,7 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
             # print(loss)
         if cfg['kl'] == 1:
             loss+=kl_loss
-            
+
         optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
