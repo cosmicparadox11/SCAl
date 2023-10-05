@@ -182,10 +182,10 @@ def runExperiment():
     #     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     # print(metric.metric_name['train'])
     if cfg['resume_mode'] == 1:
-        # result = resume_DA(cfg['model_tag'])
+        result = resume_DA(cfg['model_tag'])
         # result = resume_DA(cfg['model_tag'],load_tag='best')
-        tag_  = '0_dslr_to_amazon_webcam_resnet50_02'
-        result = resume_DA(tag_,'checkpoint')
+        # tag_  = '0_dslr_to_amazon_webcam_resnet50_02'
+        # result = resume_DA(tag_,'checkpoint')
         # import pickle
         # path = "/home/sampathkoti/Downloads/R-50-GN.pkl"
         # # m = pickle.load(open(path, 'rb'))
@@ -205,8 +205,8 @@ def runExperiment():
             scheduler.load_state_dict(result['scheduler_state_dict'])
             if cfg['new_lr'] == 1:
                 optimizer.param_groups[0]['lr']=cfg['var_lr']
-            # logger = result['logger']
-            logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+            logger = result['logger']
+            # logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
             # cfg['loss_mode'] = 'alt-fix'
         else:
             server = make_server(model)
