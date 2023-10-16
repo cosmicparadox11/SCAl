@@ -12,8 +12,8 @@ control:
   ft: '1'
   switch_epoch : 0
 # data
-data_name: SYN32
-data_name_unsup : MNIST
+data_name: office31
+data_name_unsup : office31
 model_name: resnet18
 # experiment
 num_supervised_clients: 5
@@ -35,13 +35,13 @@ elr_lam : 1.0
 var_lr : 0.001
 scheduler_name : 'CosineAnnealingLR'
 DA : 1
-domain_s : 'MNIST'
+domain_s : 'dslr'
 domain_u : 'amazon'
 # unsup_list : ['amazon','webcam']
-unsup_list : ["MNIST_M"]
-unsup_doms : 'MNIST_M-USPS'
+unsup_list : ["amazon"]
+unsup_doms : 'amazon-webcam'
 test_10_crop : False
-bt : 250
+bt : 50
 adapt_wt : 0
 avg_cent : 0
 avg_cent_alpha: 0.5
@@ -65,3 +65,4 @@ compute_mean_norm: True
 compute_std_dev: False
 mean_norm_reg: 0.01
 std_dev_reg: 0
+wt_actloss : 0.01

@@ -35,8 +35,12 @@ def main():
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     exp_num = cfg['control_name'].split('_')[0]
     exp_name = cfg['control_name'].split('_')[1]
-    x= cfg['var_lr']
-    cfg['var_lr'] = 0.01
+    # x= cfg['var_lr']
+    # cfg['var_lr'] = 0.01
+    if cfg['domain_s'] in ['amazon','dslr','webcam']:
+        cfg['data_name'] = 'office31'
+    elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
+        cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
         if cfg['data_name'] == 'office31':
             model_tag_list = [str(seeds[i]), cfg['domain_s'],cfg['domain_u'],str(cfg['var_lr']), cfg['model_name'],exp_num,exp_name]
@@ -47,7 +51,7 @@ def main():
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         cfg['model_tag_load'] = '_'.join([x for x in model_tag_list_load if x])
         print('Experiment: {}'.format(cfg['model_tag']))
-        cfg['var_lr'] = x
+        # cfg['var_lr'] = x
         runExperiment()
     # cfg['var_lr'] = 0.9
     return
@@ -67,9 +71,18 @@ def lr_scheduler(optimizer, iter_num, max_iter, gamma=10, power=0.75):
     return optimizer
 
 def runExperiment():
+    # cfg['seed'] = int(cfg['model_tag'].split('_')[0])
+    # torch.manual_seed(cfg['seed'])
+    # torch.cuda.manual_seed(cfg['seed'])
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
+    seed_val =  cfg['seed']
+    torch.manual_seed(seed_val)
+    torch.cuda.manual_seed_all(seed_val)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed_val)
     # dataset = fetch_dataset(cfg['data_name'])
     ####
     client_dataset_sup = fetch_dataset(cfg['data_name'],domain=cfg['domain_s'])
@@ -98,8 +111,8 @@ def runExperiment():
     if not cfg['test_10_crop']:
         client_dataset_unsup['test'].transform = transform_unsup
     # data_loader_sup = make_data_loader(client_dataset_sup, 'global')
-    bt = cfg['bt']
-    cfg['global']['batch_size']={'train':bt,'test':50}
+    # bt = cfg['bt']
+    # cfg['global']['batch_size']={'train':bt,'test':50}
     print(cfg['global']['batch_size'])
     data_loader_sup = make_data_loader_DA(client_dataset_sup, 'global')
     data_loader_unsup = make_data_loader_DA(client_dataset_unsup, 'global')
@@ -131,7 +144,11 @@ def runExperiment():
     print(cfg['model_tag'])
     print(cfg['model_tag_load'])
     # exit()
-    result = resume(cfg['model_tag_load'],'checkpoint')
+    ##########################
+    tag_ = '2023_dslr_0.03_resnet50_03_sup-ft-fix'
+    result = resume(tag_,'best')
+    ##########################
+    # result = resume(cfg['model_tag_load'],'checkpoint')
     # result = resume(cfg['model_tag_load'],'best')
     # result = torch.load('./output_new/model/{}_{}.pt'.format(cfg['model_tag_load'], 'checkpoint'))
     # print(model_t.state_dict().keys())
@@ -157,13 +174,15 @@ def runExperiment():
     cfg['global']['num_epochs'] = cfg['cycles']  
     epoch  = 0
     # print(torch.cuda.memory_summary(device=1))
-    with torch.no_grad():
-        test_model.load_state_dict(model_t.state_dict())
-        test_model.eval()
-        # test_DA(data_loader_sup['test'], test_model, metric, logger, epoch)
-        # test_DA(data_loader_unsup['test'], test_model, metric, logger, epoch)
-        test_DA(data_loader_sup['test'], model_t, metric, logger, epoch)
-        test_DA(data_loader_unsup['test'], model_t, metric, logger, epoch)
+    # print(cfg)
+    # with torch.no_grad():
+    #     test_model.train(False)
+    #     test_model.load_state_dict(model_t.state_dict())
+    #     # test_model.eval()
+    #     test_DA(data_loader_sup['test'], test_model, metric, logger, epoch)
+    #     test_DA(data_loader_unsup['test'], test_model, metric, logger, epoch)
+        # test_DA(data_loader_sup['test'], model_t, metric, logger, epoch)
+        # test_DA(data_loader_unsup['test'], model_t, metric, logger, epoch)
     # exit()
     # cfg['local']['lr'] = 1e-2
     # param_group = []
@@ -188,6 +207,32 @@ def runExperiment():
     # optimizer = torch.optim.SGD(param_group)
     # optimizer = op_copy(optimizer)
     # scheduler = make_scheduler(optimizer, 'global')
+    # print(cfg)
+    if cfg['par'] == 1:
+                print('freezing')
+                cfg['local']['lr'] = cfg['var_lr']
+                # cfg['local']['lr'] = 0.001
+                param_group_ = []
+                for k, v in model_t.backbone_layer.named_parameters():
+                    # print(k)
+                    if "bn" in k:
+                        # param_group += [{'params': v, 'lr': cfg['local']['lr']*2}]
+                        param_group_ += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
+                        # v.requires_grad = False
+                        # print(k)
+                    else:
+                        v.requires_grad = False
+
+                for k, v in model_t.feat_embed_layer.named_parameters():
+                    # print(k)
+                    param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
+                for k, v in model_t.class_layer.named_parameters():
+                    v.requires_grad = False
+                    # param_group += [{'params': v, 'lr': cfg['local']['lr']}]
+
+                optimizer_ = make_optimizer(param_group_, 'local')
+                optimizer = op_copy(optimizer_)
+    
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         # cfg['model_name'] = 'local'
         logger.safe(True)
@@ -383,7 +428,7 @@ def train_da(dataset, model, optimizer, metric, logger, epoch,scheduler):
     with torch.no_grad():
         model.eval()
         # print("update psd label bank!")
-        glob_multi_feat_cent, all_psd_label = init_multi_cent_psd_label(model,test_data_loader)
+        glob_multi_feat_cent, all_psd_label,_ = init_multi_cent_psd_label(model,test_data_loader)
     
 
     
@@ -443,7 +488,8 @@ def train_da(dataset, model, optimizer, metric, logger, epoch,scheduler):
         #     loss += beta_* dym_psd_loss
         #==================================================================#
         # loss = 0.5*ent_loss + 1* psd_loss + 0.1* dym_psd_loss - 1*reg_loss
-        loss = 1*ent_loss + 0.3* psd_loss + 0.1* dym_psd_loss - 1*reg_loss
+        # loss = 1*ent_loss + 0.3* psd_loss + 0.1* dym_psd_loss - 1*reg_loss
+        loss = ent_loss + 1* psd_loss + 0.1 * dym_psd_loss - reg_loss
         #==================================================================#
         # lr_scheduler(optimizer, iter_idx, iter_max)
         scheduler.step()
@@ -524,9 +570,12 @@ def test(data_loader, model, metric, logger, epoch):
     return
 
 def test_DA(data_loader, model, metric, logger, epoch):
+    model.eval()
     with torch.no_grad():
         model.train(False)
+        # 
         if cfg['test_10_crop']:
+            print('testing 10 crop')
             # iter_test = [iter(data_loader[i]) for i in range(10)]
             for j in range(10):
                 # print(type(data_loader[j]))

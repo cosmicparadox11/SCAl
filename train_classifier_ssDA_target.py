@@ -191,11 +191,14 @@ def runExperiment():
     #     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     # print(metric.metric_name['train'])
     if cfg['resume_mode'] == 1:
-        result = resume_DA(cfg['model_tag'])
+        # result = resume_DA(cfg['model_tag'])
         # result = resume_DA(cfg['model_tag'],load_tag='best')
         # tag_  = '0_dslr_to_amazon_webcam_resnet50_02'
+        tag_ = '2023_dslr_0.03_resnet50_03_sup-ft-fix'
         # tag_ = '0_dslr_to_amazon_resnet50_01'
         # result = resume_DA(tag_,'checkpoint')
+        # result = resume_DA(tag_,'best')
+        result = resume(tag_,'best')
         # import pickle
         # path = "/home/sampathkoti/Downloads/R-50-GN.pkl"
         # # m = pickle.load(open(path, 'rb'))
@@ -204,20 +207,26 @@ def runExperiment():
         last_epoch = result['epoch']
         # exit()
         if last_epoch > 1:
-            data_split_sup = result['data_split_sup']
-            data_split_unsup = result['data_split_unsup']
-            split_len = result['split_len']
-            # supervised_idx = result['supervised_idx']
-            server = result['server']
-            client = result['client']
-            supervised_clients = result['supervised_clients']
-            optimizer.load_state_dict(result['optimizer_state_dict'])
-            scheduler.load_state_dict(result['scheduler_state_dict'])
-            if cfg['new_lr'] == 1:
-                optimizer.param_groups[0]['lr']=cfg['var_lr']
-            logger = result['logger']
-            # logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
-            # cfg['loss_mode'] = 'alt-fix'
+            server = make_server(model)
+            client,supervised_clients  = make_client_DA(model, data_split_sup,data_split_unsup,split_len)
+            logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+            # server_pre = result['server']
+            # server.model_state_dict = server_pre.model_state_dict
+            server.model_state_dict=result['model_state_dict']
+            # data_split_sup = result['data_split_sup']
+            # data_split_unsup = result['data_split_unsup']
+            # split_len = result['split_len']
+            # # supervised_idx = result['supervised_idx']
+            # server = result['server']
+            # client = result['client']
+            # supervised_clients = result['supervised_clients']
+            # optimizer.load_state_dict(result['optimizer_state_dict'])
+            # scheduler.load_state_dict(result['scheduler_state_dict'])
+            # if cfg['new_lr'] == 1:
+            #     optimizer.param_groups[0]['lr']=cfg['var_lr']
+            # logger = result['logger']
+            # # logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+            # # cfg['loss_mode'] = 'alt-fix'
         else:
             server = make_server(model)
             client,supervised_clients  = make_client_DA(model, data_split_sup,data_split_unsup,split_len)
@@ -243,7 +252,7 @@ def runExperiment():
                 cfg['loss_mode'] = 'alt-fix_'
                 # cfg['loss_mode'] = 'fix-mix'
         # train_client(client_dataset_sup['train'], client_dataset_unsup['train'], server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
-        train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
+        # train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         # train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode,scheduler)
         # if 'ft' in cfg and cfg['ft'] == 0:
         #     train_server(server_dataset['train'], server, optimizer, metric, logger, epoch)
@@ -253,23 +262,26 @@ def runExperiment():
             # logger.reset()
             # server.update(client)
         #     train_server(server_dataset['train'], server, optimizer, metric, logger, epoch)
-        logger.reset()
-        server.update(client)
-        scheduler.step()
+        # logger.reset()
+        # server.update(client)
+        # scheduler.step()
 
         model.load_state_dict(server.model_state_dict)
         # print(model)
         #needs to be removed for final clean up
         # print(server.model_state_dict.keys())
         # test_model = make_batchnorm_stats(client_dataset_sup['train'],model, 'global')
+        # print(cfg)
         #====#
         test_model.load_state_dict(model.state_dict())
         #====#
+        
         test_DA(data_loader_sup['test'], test_model, metric, logger, epoch,sup=True)
         for domain_id,data_loader_unsup_ in data_loader_unsup.items():
             domain = cfg['unsup_list'][domain_id]
             test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch,domain=domain)
         # print(logger.mean)
+        exit()
         avg_accuracy=0
         avg_loss = 0 
         count = 0
@@ -877,6 +889,7 @@ def test(data_loader, model, metric, logger, epoch,sup=False):
 
 def test_DA(data_loader, model, metric, logger, epoch,sup=False,domain=None):
     logger.safe(True)
+    model.eval()
     if sup:
         tag = 'test_sup'
     else:

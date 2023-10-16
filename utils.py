@@ -162,13 +162,13 @@ def process_control():
         cfg['server'] = {}
         cfg['server']['shuffle'] = {'train': True, 'test': False}
         if cfg['num_supervised'] > 1000:
-            cfg['server']['batch_size'] = {'train': 250, 'test': 250}
+            cfg['server']['batch_size'] = {'train': 10, 'test': 10}
         else:
-            cfg['server']['batch_size'] = {'train': 25, 'test': 50}
+            cfg['server']['batch_size'] = {'train': 10, 'test': 10}
         cfg['server']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][1])))
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
-        cfg['client']['batch_size'] = {'train': 25, 'test': 50}
+        cfg['client']['batch_size'] = {'train': 10, 'test': 10}
         cfg['client']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][0])))
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
@@ -177,7 +177,7 @@ def process_control():
         cfg['local']['weight_decay'] = 5e-4
         cfg['local']['nesterov'] = True
         cfg['global'] = {}
-        cfg['global']['batch_size'] = {'train': 25, 'test': 25}
+        cfg['global']['batch_size'] = {'train': 10, 'test': 10}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
         cfg['global']['num_epochs'] = 150
         cfg['global']['optimizer_name'] = 'SGD'
@@ -200,9 +200,9 @@ def process_control():
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
         cfg[model_name]['num_epochs'] = 400
         if cfg['num_supervised'] > 1000 or cfg['num_supervised'] == -1:
-            cfg[model_name]['batch_size'] = {'train': 10, 'test': 250}
+            cfg[model_name]['batch_size'] = {'train': 10, 'test':10}
         else:
-            cfg[model_name]['batch_size'] = {'train': 10, 'test': 250}
+            cfg[model_name]['batch_size'] = {'train': 10, 'test': 10}
     return
 
 

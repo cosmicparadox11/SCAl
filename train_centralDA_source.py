@@ -37,6 +37,10 @@ def main():
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     exp_num = cfg['control_name'].split('_')[0]
     exp_name = cfg['control_name'].split('_')[1]
+    if cfg['domain_s'] in ['amazon','dslr','webcam']:
+        cfg['data_name'] = 'office31'
+    elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
+        cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
         if cfg['data_name'] == 'office31':
             model_tag_list = [str(seeds[i]), cfg['domain_s'],str(cfg['var_lr']), cfg['model_name'],exp_num,exp_name]
@@ -49,9 +53,20 @@ def main():
 
 
 def runExperiment():
+    # cfg['seed'] = int(cfg['model_tag'].split('_')[0])
+    # torch.manual_seed(cfg['seed'])
+    # torch.cuda.manual_seed(cfg['seed'])
     cfg['seed'] = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
+    seed_val =  cfg['seed']
+    torch.manual_seed(seed_val)
+    torch.cuda.manual_seed_all(seed_val)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed_val)
+    # random.seed(seed_val)
+    torch.cuda.empty_cache()
     # dataset = fetch_dataset(cfg['data_name'])
     ####
     client_dataset_sup = fetch_dataset(cfg['data_name'],domain=cfg['domain_s'])
@@ -117,12 +132,15 @@ def runExperiment():
     #     m=pickle.load(f,encoding="latin1")
     # print(model.state_dict().keys())
     # # print(m['blobs'].keys())
-    # # print(len(model.state_dict().keys()))
+    # print(len(model.state_dict().keys()))
+    # cou=0
     # for k,v in m['blobs'].items():
-    #     if 'res2_1' in k:
+    #     if 'res2' in k:
+    #         cou+=1
     #         print(k,v.shape)
     # # for k,v in model.state_dict().items():
     # #     print(k,v.shape)
+    # print(cou)
     # exit()
     ######
     # print(model)

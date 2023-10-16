@@ -164,3 +164,35 @@ feat_embed_layer.bottleneck.bias torch.Size([256])
 class_layer.fc.bias torch.Size([31])
 class_layer.fc.weight_g torch.Size([31, 1])
 class_layer.fc.weight_v torch.Size([31, 256])
+
+
+
+['res2_2_branch2a_w', 'res4_2_branch2a_w', 'res5_2_branch2c_gn_b', 'res4_2_branch2c_w', 
+'res3_1_branch2b_w', 'res2_0_branch2c_gn_b', 'res4_4_branch2b_w', 'res2_2_branch2c_gn_s',
+ 'res5_2_branch2b_w', 'res2_0_branch2c_gn_s', 'res3_3_branch2a_w', 'res5_2_branch2a_gn_s', 
+ 'res5_1_branch2b_w', 'res3_2_branch2c_gn_s', 'res5_2_branch2c_gn_s', 'res2_2_branch2c_gn_b', 
+ 'res4_0_branch1_gn_b', 'res3_3_branch2a_gn_b', 'res4_0_branch1_gn_s', 'res4_4_branch2a_gn_s', 'conv1_w', 
+ 'res2_2_branch2a_gn_b', 'res5_0_branch2b_gn_s', 'res2_0_branch2b_gn_s', 'res3_2_branch2a_w', 'res4_2_branch2a_gn_s',
+  'res2_0_branch1_w', 'res5_0_branch2b_gn_b', 'res2_0_branch2b_gn_b', 'res4_2_branch2a_gn_b', 'res4_5_branch2a_gn_b', 
+  'res5_0_branch1_gn_s', 'res4_5_branch2a_w', 'res3_1_branch2b_gn_b', 'res4_5_branch2a_gn_s', 'res5_0_branch2c_gn_b', 
+  'res2_1_branch2c_w', 'res2_2_branch2a_gn_s', 'res4_0_branch2c_w', 'res5_2_branch2a_w', 'res3_2_branch2c_w', 
+  'res4_3_branch2b_w', 'res4_1_branch2a_w', 'res4_3_branch2a_w', 'res2_1_branch2c_gn_s', 'res5_1_branch2c_gn_s',
+   'res5_1_branch2a_gn_b', 'res2_0_branch2c_w', 'res4_1_branch2c_gn_b', 'res4_3_branch2b_gn_s', 'res5_1_branch2c_gn_b',
+    'res4_0_branch2b_w', 'res3_3_branch2c_w', 'res5_0_branch2b_w', 'res4_3_branch2b_gn_b', 'res3_3_branch2c_gn_b', 'res3_1_branch2c_gn_s', 
+    'res3_2_branch2b_w', 'res5_0_branch2a_gn_b', 'res3_3_branch2c_gn_s', 'res3_1_branch2c_gn_b', 'res5_0_branch2a_gn_s', 'res4_0_branch1_w',
+     'res4_0_branch2a_gn_s', 'res3_1_branch2a_gn_b', 'res2_0_branch2a_gn_b', 'res3_0_branch1_w', 'res4_0_branch2a_gn_b', 'res3_1_branch2a_gn_s',
+      'res3_1_branch2a_w', 'res2_0_branch2a_gn_s', 'res4_1_branch2c_gn_s', 'res4_3_branch2c_gn_b', 'res4_5_branch2b_gn_b', 'res4_4_branch2c_gn_b', 
+      'res2_1_branch2c_gn_b', 'conv1_gn_b', 'res4_3_branch2c_gn_s', 'res4_4_branch2c_gn_s', 'conv1_gn_s', 'res4_5_branch2b_gn_s', 'res4_3_branch2a_gn_b',
+       'res5_1_branch2b_gn_b', 'res4_5_branch2c_gn_s', 'res2_1_branch2a_gn_b', 'res5_2_branch2a_gn_b', 'res4_1_branch2b_gn_b', 'res2_0_branch2b_w', 
+       'res5_1_branch2b_gn_s', 'res4_5_branch2c_gn_b', 'res4_0_branch2a_w', 'res4_1_branch2c_w', 'res4_1_branch2a_gn_s', 'res4_1_branch2b_gn_s', 
+       'res4_3_branch2a_gn_s', 'res4_5_branch2c_w', 'res4_4_branch2b_gn_b', 'res3_0_branch2c_gn_s', 'res4_1_branch2a_gn_b', 'res4_4_branch2b_gn_s', 
+       'res3_0_branch2c_gn_b', 'res5_0_branch1_gn_b', 'res4_3_branch2c_w', 'res3_2_branch2b_gn_b', 'res4_4_branch2c_w', 'res5_1_branch2a_w', 
+       'res3_3_branch2b_gn_s', 'res2_2_branch2b_w', 'res3_0_branch1_gn_b', 'res4_0_branch2b_gn_b', 'res3_0_branch2a_gn_s', 'res2_1_branch2b_w', 
+       'res3_2_branch2b_gn_s', 'res3_1_branch2c_w', 'res3_3_branch2b_gn_b', 'res3_0_branch1_gn_s', 'res3_0_branch2b_w', 'res4_0_branch2b_gn_s', 
+       'res3_1_branch2b_gn_s', 'res3_0_branch2a_gn_b', 'res4_5_branch2b_w', 'res4_2_branch2b_gn_b', 'res4_0_branch2c_gn_s', 'pred_b', 'res3_3_branch2b_w', 
+       'res2_1_branch2b_gn_b', 'res2_1_branch2a_gn_s', 'res5_2_branch2c_w', 'res4_2_branch2b_gn_s', 'res5_1_branch2c_w', 'res4_4_branch2a_w', 
+       'res3_3_branch2a_gn_s', 'pred_w', 'res4_0_branch2c_gn_b', 'res2_0_branch2a_w', 'res2_1_branch2b_gn_s', 'res4_2_branch2c_gn_s', 
+       'res2_0_branch1_gn_s', 'res5_0_branch2c_w', 'res5_2_branch2b_gn_s', 'res4_4_branch2a_gn_b', 'res2_1_branch2a_w', 'res2_2_branch2b_gn_s',
+        'res4_2_branch2c_gn_b', 'res5_0_branch2c_gn_s', 'res2_0_branch1_gn_b', 'res4_2_branch2b_w', 'res5_2_branch2b_gn_b', 'res2_2_branch2b_gn_b',
+         'res3_0_branch2c_w', 'res5_0_branch1_w', 'res3_0_branch2b_gn_b', 'res2_2_branch2c_w', 'res3_2_branch2a_gn_s', 'res5_1_branch2a_gn_s', 
+         'res3_2_branch2a_gn_b', 'res4_1_branch2b_w', 'res3_2_branch2c_gn_b', 'res5_0_branch2a_w', 'res3_0_branch2b_gn_s', 'res3_0_branch2a_w'])
