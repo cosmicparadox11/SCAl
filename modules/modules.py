@@ -1618,7 +1618,8 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         psd_label = all_psd_label[input['id']]
         # print(input)
         embed_feat, pred_cls = model(input)
-        
+        act_loss = sum([item['mean_norm'] for item in list(model.act_stats.values())])
+
         if pred_cls.shape != psd_label.shape:
             # psd_label is not one-hot like.
             psd_label = torch.zeros_like(pred_cls).scatter(1, psd_label.unsqueeze(1), 1)
@@ -1647,7 +1648,7 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         #     loss += 0.5 * dym_psd_loss
 
         #==================================================================#
-        loss = ent_loss + 1* psd_loss + 0.1 * dym_psd_loss - reg_loss
+        loss = ent_loss + 1* psd_loss + 0.1 * dym_psd_loss - reg_loss + act_loss
         #==================================================================#
         #==================================================================#
         #==================================================================#

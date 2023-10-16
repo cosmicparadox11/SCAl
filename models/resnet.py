@@ -12,20 +12,22 @@ class Block(nn.Module):
 
     def __init__(self, in_planes, planes, stride):
         super(Block, self).__init__()
-        self.n1 = nn.GroupNorm(num_groups=2,num_channels=in_planes)
+        # self.n1 = nn.GroupNorm(num_groups=2,num_channels=in_planes)
         # self.n1 = nn.BatchNorm2d(in_planes)
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.n2 = nn.GroupNorm(num_groups=2,num_channels=planes)
+        # self.n2 = nn.GroupNorm(num_groups=2,num_channels=planes)
         # self.n2 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         if stride != 1 or in_planes != self.expansion * planes:
             self.shortcut = nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False)
 
     def forward(self, x):
-        out = F.relu(self.n1(x))
+        # out = F.relu(self.n1(x))
+        out = F.relu(x)
         shortcut = self.shortcut(out) if hasattr(self, 'shortcut') else x
         out = self.conv1(out)
-        out = self.conv2(F.relu(self.n2(out)))
+        # out = self.conv2(F.relu(self.n2(out)))
+        out = self.conv2(F.relu(out))
         out += shortcut
         return out
 
@@ -109,7 +111,7 @@ class Embedding(nn.Module):
     
         super(Embedding, self).__init__()
         # self.bn = nn.BatchNorm1d(embed_dim, affine=True)
-        self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
+        # self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
         self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=0.5)
         self.bottleneck = nn.Linear(feature_dim, embed_dim)
@@ -119,8 +121,8 @@ class Embedding(nn.Module):
     def forward(self, x):
         # print(self.bottleneck,x.shape)
         x = self.bottleneck(x)
-        if self.type == "bn":
-            x = self.bn(x)
+        # if self.type == "bn":
+        #     x = self.bn(x)
         return x 
 class Classifier(nn.Module):
     def __init__(self, embed_dim, class_num, type="linear"):
@@ -150,12 +152,12 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, hidden_size[1], num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, hidden_size[2], num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, hidden_size[3], num_blocks[3], stride=2)
-        self.n4 = nn.GroupNorm(num_groups=2,num_channels=hidden_size[3] * block.expansion)
+        # self.n4 = nn.GroupNorm(num_groups=2,num_channels=hidden_size[3] * block.expansion)
         # self.n4 = nn.BatchNorm2d(hidden_size[3] * block.expansion)
-        self.linear = nn.Linear(hidden_size[3] * block.expansion, target_size)
-        # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
+        # self.linear = nn.Linear(hidden_size[3] * block.expansion, target_size)
+        self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
         
-        # self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
+        self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
         # self.projection = ProjectionHead(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion,sim_out)
         # self.projection = nn.Sequential(nn.Linear(hidden_size[3] * block.expansion,hidden_size[3] * block.expansion),
         #                                 nn.ReLU(),
@@ -187,13 +189,14 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x = F.relu(self.n4(x))
+        # x = F.relu(self.n4(x))
+        x = F.relu(x)
         x = F.adaptive_avg_pool2d(x, 1)
         x = x.view(x.size(0), -1)
-        f = x
-        # f = self.feat_embed_layer(x)
-        x = self.linear(x)
-        # x = self.class_layer(f)
+        # f = x
+        f = self.feat_embed_layer(x)
+        # x = self.linear(x)
+        x = self.class_layer(f)
         if apply_softmax:
             x = torch.softmax(x, dim=1)
         else:
@@ -296,7 +299,8 @@ class ResNet(nn.Module):
             # print(input.keys())
             if 'sup' in input['loss_mode']:
                 # print(input['target'])
-                output['loss'] = loss_fn(output['target'], input['target'])
+                act_loss = sum([item['mean_norm'] for item in list(self.act_stats.values())])
+                output['loss'] = loss_fn(output['target'], input['target']) + act_loss
             elif 'sim' in input['loss_mode']:
                 if 'ft' in input['loss_mode'] and 'bl' not in input['loss_mode']:
                     if input['epoch']<= cfg['switch_epoch']:
@@ -402,7 +406,7 @@ def resnet9(momentum=None, track=True):
     model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
 
     ## Register forward hook ##
-    register_act_hooks(model, compute_mean_norm=True, compute_std_dev=False)
+    register_act_hooks(model, compute_mean_norm=cfg['compute_mean_norm'], compute_std_dev=cfg['compute_std_dev'])
 
     return model
 

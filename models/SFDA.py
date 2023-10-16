@@ -252,7 +252,8 @@ class SFDA(nn.Module):
                 # print(input['target'])
                 # print('label smoothning')
                 criterion = CrossEntropyLabelSmooth(num_classes=cfg['target_size'], epsilon=0.1, reduction=True)
-                output['loss'] = criterion(output['target'], input['target'])
+                act_loss = sum([item['mean_norm'] for item in list(self.act_stats.values())])
+                output['loss'] = criterion(output['target'], input['target']) + act_loss
                 # print(output['loss'])
                 # output['loss'] = loss_fn(output['target'], input['target'])
                 
