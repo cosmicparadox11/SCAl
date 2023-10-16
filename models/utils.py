@@ -9,11 +9,12 @@ import functools
 
 # Register forward hook
 def register_act_hooks(model, compute_mean_norm=False, compute_std_dev=False):
+    def create_hook(name):
+        return lambda module, input, output: hook_fn(module, input, output, layer_name=name, model=model, compute_mean_norm=compute_mean_norm, compute_std_dev=compute_std_dev)
+
     for name, module in model.named_modules():
-        if 'conv' in name or 'linear' in name:
-            module.register_forward_hook(lambda module, input, output: 
-                hook_fn(module, input, output, layer_name=name, model=model, 
-                compute_mean_norm=compute_mean_norm, compute_std_dev=compute_std_dev))
+        if isinstance(module, (nn.Conv2d, nn.Linear)) and 'class_layer' not in name:
+            module.register_forward_hook(create_hook(name))
 
 ## Hook function
 def hook_fn(module, input, output, layer_name, model, compute_mean_norm=False, compute_std_dev=False):
