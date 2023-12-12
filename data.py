@@ -11,34 +11,38 @@ from utils import collate, to_device
 # from pytorch_adapt.datasets import DataloaderCreator, get_office31
 from PIL import Image
 import random
-    
+
 data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.3530,)),
               'MNIST_M': ((0.1307,), (0.3081,)),
               'CIFAR10': ((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
               'CIFAR100': ((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
               'SVHN': ((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
-            # 'SVHN':((0.5,),
-            #                  (0.5,)),
+              # 'SVHN':((0.5,), (0.5,)),
               'STL10': ((0.4409, 0.4279, 0.3868), (0.2683, 0.2610, 0.2687)),
-              'USPS':((0.5,), (0.5,)),
-              'office31':([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'USPS': ((0.5,), (0.5,)),
+              'office31': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'OfficeHome': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'SYN32': ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))}
-            #    'dslr':([0.485, 0.456, 0.406],
-            #                        [0.229, 0.224, 0.225]),
-            #    'webcam':([0.485, 0.456, 0.406],
-            #                        [0.229, 0.224, 0.225])}
 
 
-def fetch_dataset(data_name,domain = None):
+#    'dslr':([0.485, 0.456, 0.406],
+#                        [0.229, 0.224, 0.225]),
+#    'webcam':([0.485, 0.456, 0.406],
+#                        [0.229, 0.224, 0.225])}
+
+
+def fetch_dataset(data_name, domain=None):
     import datasets
     dataset = {}
     print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
     if data_name in ['MNIST', 'FashionMNIST']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
-                                'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),transforms.ToTensor()]))'.format(data_name))
+                                'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                                'transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
-                               'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),transforms.ToTensor()]))'.format(data_name))
+                               'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                               'transforms.ToTensor()]))'.format(data_name))
         # dataset['train'].transform = datasets.Compose([
         #     transforms.ToTensor(),
         #     transforms.Normalize(*data_stats[data_name])])
@@ -50,55 +54,44 @@ def fetch_dataset(data_name,domain = None):
             transforms.Resize(32),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-    elif data_name in ['office31']:
-        print(domain)
-        # dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
-        #                         'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+    elif data_name in ['office31', 'OfficeHome']:
+        # print(domain)
+        dataset['train'] = eval('datasets.{}(root=root, domain=domain, split=\'train\', '
+                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         # dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
         #                        'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset['train'] = datasets.office31(root=root,domain = domain, split='train',
-                                transform=datasets.Compose([transforms.ToTensor()]))
-        
-        dataset['train'].transform = datasets.Compose([
-            # transforms.Grayscale(num_output_channels=3),
-            transforms.ToTensor()])
+
+        # dataset['train'] = datasets.office31(root=root, domain=domain, split='train',
+        #                                      transform=datasets.Compose([transforms.ToTensor()]))
+
+        dataset['train'].transform = datasets.Compose([transforms.ToTensor()])
+
         if cfg['test_10_crop']:
             crop_list = image_test_10crop()
             for i in range(10):
-                dataset['test'] = [datasets.office31(root=root, split='test',domain = domain,
-                                transform=crop_list[i]) for i in range(10)]
-
+                dataset['test'] = eval('[datasets.{}(root=root, domain=domain, split=\'test\', '
+                               'transform=crop_list[i]) for i in range(10)]'.format(data_name))
         else:
             print('test_10crop disabled')
             resize_size = 256
             crop_size = 224
-            dataset['test'] = datasets.office31(root=root, split='test',domain = domain,
-                                transform=datasets.Compose([transforms.ToTensor()]))
+            dataset['test'] = eval('datasets.{}(root=root, domain=domain, split=\'test\', '
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
             dataset['test'].transform = datasets.Compose(
                 [
-                                # transforms.CenterCrop(224),
-                                # transforms.ToTensor(),
-                                # transforms.Normalize(*data_stats[data_name])
-                                # # transforms.RandomResizedCrop(224)
-                                ResizeImage(resize_size),
-                                # transforms.RandomResizedCrop(crop_size),
-                                # transforms.RandomHorizontalFlip(),
-                                transforms.CenterCrop(crop_size),
-                                transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ]
+                    # transforms.CenterCrop(224),
+                    # transforms.ToTensor(),
+                    # transforms.Normalize(*data_stats[data_name])
+                    # # transforms.RandomResizedCrop(224)
+                    ResizeImage(resize_size),
+                    # transforms.RandomResizedCrop(crop_size),
+                    # transforms.RandomHorizontalFlip(),
+                    transforms.CenterCrop(crop_size),
+                    transforms.ToTensor(),
+                    transforms.Normalize(*data_stats[data_name])
+                ]
 
-
-                                                        )
-
-            
-            
-        # dataset['train'].transform = datasets.Compose([
-        #     transforms.ToTensor(),
-        #     transforms.Normalize(*data_stats[data_name])])
-        
-        # if not cfg['test_10_crop']:
-            
+            )
     elif data_name in ['CIFAR10', 'CIFAR100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
@@ -112,7 +105,7 @@ def fetch_dataset(data_name,domain = None):
         dataset['test'].transform = datasets.Compose([
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-    elif data_name in ['SVHN','MNIST_M','SYN32']:
+    elif data_name in ['SVHN', 'MNIST_M', 'SYN32']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
@@ -128,7 +121,7 @@ def fetch_dataset(data_name,domain = None):
             transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-            # transforms.Normalize((0.5), (0.5))])
+        # transforms.Normalize((0.5), (0.5))])
     elif data_name in ['STL10']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
@@ -144,9 +137,11 @@ def fetch_dataset(data_name,domain = None):
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['USPS']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
-                                'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),transforms.ToTensor()]))'.format(data_name))
+                                'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                                'transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
-                               'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),transforms.ToTensor()]))'.format(data_name))
+                               'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                               'transforms.ToTensor()]))'.format(data_name))
         # dataset['train'].transform = datasets.Compose([
         #     transforms.ToTensor(),
         #     transforms.Normalize(*data_stats[data_name])])
@@ -196,31 +191,35 @@ def make_data_loader(dataset, tag, batch_size=None, shuffle=None, sampler=None, 
 
     return data_loader
 
+
 def make_data_loader_DA(dataset, tag, batch_size=None, shuffle=None, sampler=None, batch_sampler=None):
     data_loader = {}
     print(cfg['test_10_crop'])
     for k in dataset:
-        if cfg['test_10_crop']  and k == 'test':
+        if cfg['test_10_crop'] and k == 'test':
             print('creating test 10 crop')
             _batch_size = cfg[tag]['batch_size'][k] if batch_size is None else batch_size[k]
             _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
-            print(_batch_size,_shuffle)
+            print(_batch_size, _shuffle)
             if sampler is not None:
                 for i in range(10):
                     data_loader[k] = [DataLoader(dataset=dataset, batch_size=_batch_size, sampler=sampler[k],
-                                            pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                            worker_init_fn=np.random.seed(cfg['seed'])) for dataset in dataset[k]]
+                                                 pin_memory=True, num_workers=cfg['num_workers'],
+                                                 collate_fn=input_collate,
+                                                 worker_init_fn=np.random.seed(cfg['seed'])) for dataset in dataset[k]]
             elif batch_sampler is not None:
                 for i in range(10):
                     data_loader[k] = [DataLoader(dataset=dataset, batch_sampler=batch_sampler[k],
-                                            pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                            worker_init_fn=np.random.seed(cfg['seed'])  ) for dataset in dataset[k]]
+                                                 pin_memory=True, num_workers=cfg['num_workers'],
+                                                 collate_fn=input_collate,
+                                                 worker_init_fn=np.random.seed(cfg['seed'])) for dataset in dataset[k]]
             else:
                 for i in range(10):
                     data_loader[k] = [DataLoader(dataset=dataset, batch_size=_batch_size, shuffle=_shuffle,
-                                            pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                            worker_init_fn=np.random.seed(cfg['seed'])) for dataset in dataset[k]]
-        else :
+                                                 pin_memory=True, num_workers=cfg['num_workers'],
+                                                 collate_fn=input_collate,
+                                                 worker_init_fn=np.random.seed(cfg['seed'])) for dataset in dataset[k]]
+        else:
             _batch_size = cfg[tag]['batch_size'][k] if batch_size is None else batch_size[k]
             _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
             if sampler is not None:
@@ -237,6 +236,7 @@ def make_data_loader_DA(dataset, tag, batch_size=None, shuffle=None, sampler=Non
                                             worker_init_fn=np.random.seed(cfg['seed']))
 
     return data_loader
+
 
 def split_dataset(dataset, num_users, data_split_mode):
     data_split = {}
@@ -288,23 +288,47 @@ def non_iid(dataset, num_users):
                 data_split[i].extend(target_idx_split[target_i].pop(idx))
     elif data_split_mode_tag == 'd':
         beta = float(data_split_mode_list[-1])
-        dir = torch.distributions.dirichlet.Dirichlet(torch.tensor(beta).repeat(num_users))
-        min_size = 0
-        required_min_size = 10
-        N = target.size(0)
-        while min_size < required_min_size:
-            data_split = [[] for _ in range(num_users)]
-            for target_i in range(cfg['target_size']):
-                target_idx = torch.where(target == target_i)[0]
-                proportions = dir.sample()
-                proportions = torch.tensor(
-                    [p * (len(data_split_idx) < (N / num_users)) for p, data_split_idx in zip(proportions, data_split)])
-                proportions = proportions / proportions.sum()
-                split_idx = (torch.cumsum(proportions, dim=-1) * len(target_idx)).long().tolist()[:-1]
-                split_idx = torch.tensor_split(target_idx, split_idx)
-                data_split = [data_split_idx + idx.tolist() for data_split_idx, idx in zip(data_split, split_idx)]
-            min_size = min([len(data_split_idx) for data_split_idx in data_split])
-        data_split = {i: data_split[i] for i in range(num_users)}
+        data_per_client = int(target.size(0) / num_users)
+        client_data_list = (np.ones(num_users) * data_per_client).astype(int)
+        # dir = torch.distributions.dirichlet.Dirichlet(torch.tensor(beta).repeat(num_users))
+        # min_size = 0
+        # required_min_size = 10
+        # N = target.size(0)
+        # while min_size < required_min_size:
+        #     data_split = [[] for _ in range(num_users)]
+        #     for target_i in range(cfg['target_size']):
+        #         target_idx = torch.where(target == target_i)[0]
+        #         proportions = dir.sample()
+        #         proportions = torch.tensor(
+        #             [p * (len(data_split_idx) < (N / num_users)) for p, data_split_idx in zip(proportions, data_split)])
+        #         proportions = proportions / proportions.sum()
+        #         split_idx = (torch.cumsum(proportions, dim=-1) * len(target_idx)).long().tolist()[:-1]
+        #         split_idx = torch.tensor_split(target_idx, split_idx)
+        #         data_split = [data_split_idx + idx.tolist() for data_split_idx, idx in zip(data_split, split_idx)]
+        #     min_size = min([len(data_split_idx) for data_split_idx in data_split])
+        cls_priors = np.random.dirichlet([beta] * cfg['target_size'], size=num_users)
+        prior_cumsum = np.cumsum(cls_priors, axis=1)
+        idx_list = [np.where(target == i)[0] for i in range(cfg['target_size'])]
+        cls_amount = [len(idx_list[i]) for i in range(cfg['target_size'])]
+
+        client_indices = [[] for _ in range(num_users)]
+        client_data_count = np.zeros(num_users, dtype=int)
+
+        for i in range(num_users):
+            while client_data_list[i] > 0:
+                curr_prior = prior_cumsum[i]
+                label = np.argmax(np.random.uniform() <= curr_prior)
+                if cls_amount[label] <= 0:
+                    continue
+                cls_amount[label] -= 1
+
+                data_idx = idx_list[label][cls_amount[label]]
+
+                client_indices[i].append(data_idx)
+                client_data_count[i] += 1
+                client_data_list[i] -= 1
+
+        data_split = {i: client_indices[i] for i in range(num_users)}
     else:
         raise ValueError('Not valid data split mode tag')
     return data_split
@@ -318,7 +342,9 @@ def separate_dataset(dataset, idx):
     transform = FixTransform(cfg['data_name'])
     separated_dataset.transform = transform
     return separated_dataset
-def separate_dataset_DA(dataset, idx,name=None):
+
+
+def separate_dataset_DA(dataset, idx, name=None):
     separated_dataset = copy.deepcopy(dataset)
     separated_dataset.data = [dataset.data[int(s)] for s in idx]
     separated_dataset.target = [dataset.target[int(s)] for s in idx]
@@ -326,6 +352,7 @@ def separate_dataset_DA(dataset, idx,name=None):
     transform = FixTransform(name)
     separated_dataset.transform = transform
     return separated_dataset
+
 
 def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None):
     if supervised_idx is None:
@@ -361,47 +388,55 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
         transform = FixTransform(cfg['data_name'])
         _client_dataset.transform = transform
     return _server_dataset, _client_dataset, supervised_idx
-def split_class_dataset(dataset, data_split_mode = 'iid'):
+
+
+def split_class_dataset(dataset, data_split_mode='iid'):
     data_split = {}
     if data_split_mode == 'iid':
         data_split['train'] = seperate_sup_unsup(dataset['train'])
         data_split['test'] = seperate_sup_unsup(dataset['test'])
     return data_split
+
+
 def seperate_sup_unsup(client_dataset):
     target = torch.tensor(client_dataset.target)
-    num_supervised_per_class = len(client_dataset)// (cfg['target_size']*cfg['num_clients'])
-    data_split={}
+    num_supervised_per_class = len(client_dataset) // (cfg['target_size'] * cfg['num_clients'])
+    data_split = {}
     for i in range(int(cfg['num_clients'])):
         data_split[i] = []
     for j in range(cfg['target_size']):
         idx = torch.where(target == j)[0]
-        
+
         for i in range(int(cfg['num_clients'])):
             num_items_i = min(len(idx), num_supervised_per_class)
             idx_i = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
             data_split[i].extend(idx_i)
             idx = list(set(idx.tolist()) - set(idx_i))
             idx = torch.Tensor(idx)
-        
+
     return data_split
-def split_class_dataset_DA(dataset, data_split_mode = 'iid',split_num = 0):
+
+
+def split_class_dataset_DA(dataset, data_split_mode='iid', split_num=0):
     data_split = {}
     # print(split_num)
     if data_split_mode == 'iid':
-        data_split['train'] = seperate_sup_unsup_DA(dataset['train'],split_num)
-        data_split['test'] = seperate_sup_unsup_DA(dataset['test'],split_num)
+        data_split['train'] = seperate_sup_unsup_DA(dataset['train'], split_num)
+        data_split['test'] = seperate_sup_unsup_DA(dataset['test'], split_num)
     return data_split
-def seperate_sup_unsup_DA(client_dataset,split_num):
+
+
+def seperate_sup_unsup_DA(client_dataset, split_num):
     print('data len')
     print(len(client_dataset))
     target = torch.tensor(client_dataset.target)
-    num_supervised_per_class = len(client_dataset)// (cfg['target_size']*split_num) #samples pre class per client
-    data_split={}
+    num_supervised_per_class = len(client_dataset) // (cfg['target_size'] * split_num)  # samples pre class per client
+    data_split = {}
     for i in range(int(split_num)):
         data_split[i] = []
     for j in range(cfg['target_size']):
         idx = torch.where(target == j)[0]
-        
+
         for i in range(int(split_num)):
             num_items_i = min(len(idx), num_supervised_per_class)
             idx_i = idx[torch.randperm(len(idx))[:num_items_i]].tolist()
@@ -409,8 +444,9 @@ def seperate_sup_unsup_DA(client_dataset,split_num):
             data_split[i].extend(idx_i)
             idx = list(set(idx.tolist()) - set(idx_i))
             idx = torch.Tensor(idx)
-        
+
     return data_split
+
 
 def make_batchnorm_dataset_su(server_dataset, client_dataset):
     batchnorm_dataset = copy.deepcopy(server_dataset)
@@ -426,14 +462,14 @@ def make_dataset_normal(dataset):
     import datasets
     _transform = dataset.transform
     # transform = datasets.Compose([transforms.Grayscale(num_output_channels=3),transforms.ToTensor(), transforms.Normalize(*data_stats[cfg['data_name']])])
-    transform  = datasets.Compose(
-                                [
+    transform = datasets.Compose(
+        [
 
-                                ResizeImage(224),
-                                # transforms.CenterCrop(crop_size),
-                                transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[cfg['data_name']])
-                                ])
+            ResizeImage(224),
+            # transforms.CenterCrop(crop_size),
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[cfg['data_name']])
+        ])
     dataset.transform = transform
     return dataset, _transform
 
@@ -458,6 +494,8 @@ def make_batchnorm_stats(dataset, model, tag):
         #     test_model(input)
         # dataset.transform = _transform
     return test_model
+
+
 def BN_stats(dataset, model, epoch=None):
     tag = 'global'
     with torch.no_grad():
@@ -479,6 +517,8 @@ def BN_stats(dataset, model, epoch=None):
             test_model(input)
         dataset.transform = _transform
     return test_model
+
+
 def make_batchnorm_stats_DA(model, tag):
     with torch.no_grad():
         test_model = eval('models.{}()'.format(cfg['model_name']))
@@ -486,14 +526,16 @@ def make_batchnorm_stats_DA(model, tag):
         test_model.load_state_dict(model.state_dict())
         test_model.apply(lambda m: models.make_batchnorm(m, momentum=0.1, track_running_stats=True))
     return test_model
+
+
 class FixTransform(object):
     def __init__(self, data_name):
         import datasets
         if data_name in ['CIFAR10', 'CIFAR100']:
             self.normal = transforms.Compose(
-                                [transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ])
+                [transforms.ToTensor(),
+                 transforms.Normalize(*data_stats[data_name])
+                 ])
             self.weak = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
@@ -507,19 +549,19 @@ class FixTransform(object):
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
             ])
-        elif data_name in ['SVHN','MNIST_M','SYN32']:
+        elif data_name in ['SVHN', 'MNIST_M', 'SYN32']:
             self.normal = transforms.Compose(
-                                [
-                                # transforms.Grayscale(),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.5),(0.5))
-                                # transforms.Normalize(*data_stats[data_name])
-                                ])
+                [
+                    # transforms.Grayscale(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5), (0.5))
+                    # transforms.Normalize(*data_stats[data_name])
+                ])
             self.weak = transforms.Compose([
                 # transforms.Grayscale(),
                 transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5),(0.5))
+                transforms.Normalize((0.5), (0.5))
                 # transforms.Normalize(*data_stats[data_name])
             ])
             self.strong = transforms.Compose([
@@ -527,17 +569,17 @@ class FixTransform(object):
                 datasets.RandAugment(n=2, m=10),
                 # transforms.Grayscale(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5),(0.5))
+                transforms.Normalize((0.5), (0.5))
                 # transforms.Normalize(*data_stats[data_name])
             ])
         elif data_name in ['USPS']:
             self.normal = transforms.Compose(
-                                [
-                                transforms.Resize(32),
-                                 transforms.Grayscale(num_output_channels=3),
-                                 transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ])
+                [
+                    transforms.Resize(32),
+                    transforms.Grayscale(num_output_channels=3),
+                    transforms.ToTensor(),
+                    transforms.Normalize(*data_stats[data_name])
+                ])
             self.weak = transforms.Compose([
                 # transforms.Grayscale(num_output_channels=3),
                 transforms.Resize(32),
@@ -545,7 +587,7 @@ class FixTransform(object):
                 transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
-                
+
             ])
             self.strong = transforms.Compose([
                 # transforms.Grayscale(num_output_channels=3),
@@ -558,18 +600,18 @@ class FixTransform(object):
             ])
         elif data_name in ['MNIST']:
             self.normal = transforms.Compose(
-                                [
-                                transforms.Grayscale(num_output_channels=3),
-                                transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ])
+                [
+                    transforms.Grayscale(num_output_channels=3),
+                    transforms.ToTensor(),
+                    transforms.Normalize(*data_stats[data_name])
+                ])
             self.weak = transforms.Compose([
                 # transforms.Grayscale(num_output_channels=3),
                 transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
                 transforms.Grayscale(num_output_channels=3),
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
-                
+
             ])
             self.strong = transforms.Compose([
                 # transforms.Grayscale(num_output_channels=3),
@@ -581,9 +623,9 @@ class FixTransform(object):
             ])
         elif data_name in ['STL10']:
             self.normal = transforms.Compose(
-                                [transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ])
+                [transforms.ToTensor(),
+                 transforms.Normalize(*data_stats[data_name])
+                 ])
             self.weak = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomCrop(96, padding=12, padding_mode='reflect'),
@@ -597,24 +639,24 @@ class FixTransform(object):
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
             ])
-        elif data_name in ['office31']:
+        elif data_name in ['office31', 'OfficeHome']:
             resize_size = 256
             crop_size = 224
             self.normal = transforms.Compose(
-                                [
-                                # transforms.CenterCrop(224),
-                                # transforms.ToTensor(),
-                                # transforms.Normalize(*data_stats[data_name])
-                                # # transforms.RandomResizedCrop(224)
-                                ResizeImage(resize_size),
-                                # transforms.CenterCrop(crop_size),
-        transforms.RandomResizedCrop(crop_size),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(*data_stats[data_name])
-                                ])
+                [
+                    # transforms.CenterCrop(224),
+                    # transforms.ToTensor(),
+                    # transforms.Normalize(*data_stats[data_name])
+                    # # transforms.RandomResizedCrop(224)
+                    ResizeImage(resize_size),
+                    # transforms.CenterCrop(crop_size),
+                    transforms.RandomResizedCrop(crop_size),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize(*data_stats[data_name])
+                ])
             self.weak = transforms.Compose([
-                
+
                 # transforms.RandomHorizontalFlip(),
                 # transforms.CenterCrop(224),
                 # transforms.ToTensor(),
@@ -622,11 +664,11 @@ class FixTransform(object):
                 # # ResizeImage(256),
                 # # transforms.RandomResizedCrop(224),
                 ResizeImage(resize_size),
-        transforms.RandomResizedCrop(crop_size),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(*data_stats[data_name])
-                
+                transforms.RandomResizedCrop(crop_size),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(*data_stats[data_name])
+
             ])
             self.strong = transforms.Compose([
                 ResizeImage(resize_size),
@@ -645,22 +687,25 @@ class FixTransform(object):
         data = self.normal(input['data'])
         augw = self.weak(input['data'])
         augs = self.strong(input['data'])
-        input = {**input, 'data': data, 'augw': augw, 'augs':augs}
+        input = {**input, 'data': data, 'augw': augw, 'augs': augs}
         # input = {**input, 'data': data, 'augw': augw}
         return input
 
+
 class ResizeImage():
     def __init__(self, size):
-      if isinstance(size, int):
-        self.size = (int(size), int(size))
-      else:
-        self.size = size
+        if isinstance(size, int):
+            self.size = (int(size), int(size))
+        else:
+            self.size = size
+
     def __call__(self, img):
-    #   print(type(img))
-    #   if type(img) == dict:
-    #       print(img.keys())
-      th, tw = self.size
-      return img.resize((th, tw))
+        #   print(type(img))
+        #   if type(img) == dict:
+        #       print(img.keys())
+        th, tw = self.size
+        return img.resize((th, tw))
+
 
 class RandomSizedCrop(object):
     """Crop the given PIL.Image to random size and aspect ratio.
@@ -678,53 +723,60 @@ class RandomSizedCrop(object):
         self.interpolation = interpolation
 
     def __call__(self, img):
-        h_off = random.randint(0, img.shape[1]-self.size)
-        w_off = random.randint(0, img.shape[2]-self.size)
-        img = img[:, h_off:h_off+self.size, w_off:w_off+self.size]
+        h_off = random.randint(0, img.shape[1] - self.size)
+        w_off = random.randint(0, img.shape[2] - self.size)
+        img = img[:, h_off:h_off + self.size, w_off:w_off + self.size]
         return img
+
+
 class SimDataset(object):
-    def __init__(self, data_name,transform_type='sim' ,s=1,size=32):
+    def __init__(self, data_name, transform_type='sim', s=1, size=32):
         import datasets
-        self.s=s
+        self.s = s
         if data_name in ['CIFAR10', 'CIFAR100']:
             if transform_type == 'sim':
                 self.augment = transforms.Compose([transforms.ToPILImage(),
-                        
-                                                transforms.RandomResizedCrop(32,(0.8,1.0)),
-                                                transforms.RandomHorizontalFlip(0.5),
-                                                transforms.Compose([transforms.RandomApply([transforms.ColorJitter(0.8*self.s, 
-                                                                                                                    0.8*self.s, 
-                                                                                                                    0.8*self.s, 
-                                                                                                                    0.2*self.s)], p = 0.8),
-                                                                    transforms.RandomGrayscale(p=0.2),
-                                                                    # GaussianBlur(kernel_size=int(0.1 * size)),
-                                                                    transforms.GaussianBlur(kernel_size=int(0.1 * size)),
 
-                                                                    ]),
-                                transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ])
+                                                   transforms.RandomResizedCrop(32, (0.8, 1.0)),
+                                                   transforms.RandomHorizontalFlip(0.5),
+                                                   transforms.Compose(
+                                                       [transforms.RandomApply([transforms.ColorJitter(0.8 * self.s,
+                                                                                                       0.8 * self.s,
+                                                                                                       0.8 * self.s,
+                                                                                                       0.2 * self.s)],
+                                                                               p=0.8),
+                                                        transforms.RandomGrayscale(p=0.2),
+                                                        # GaussianBlur(kernel_size=int(0.1 * size)),
+                                                        transforms.GaussianBlur(kernel_size=int(0.1 * size)),
+
+                                                        ]),
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize(*data_stats[data_name])
+                                                   ])
             elif transform_type == 'normal':
                 self.augment = transforms.Compose([transforms.ToPILImage(),
-                                transforms.ToTensor(),
-                                transforms.Normalize(*data_stats[data_name])
-                                ])
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize(*data_stats[data_name])
+                                                   ])
+
     def __call__(self, input):
         A1 = np.empty_like(input['data'].cpu().numpy()
-                             )
+                           )
         A2 = np.empty_like(input['data'].cpu().numpy()
-                             )
+                           )
         # print(temp.shape)
-        for num,i in enumerate(input['data']):
+        for num, i in enumerate(input['data']):
             A1[num] = self.augment(i)
             A2[num] = self.augment(i)
         A1 = torch.Tensor(A1)
         A2 = torch.Tensor(A2)
         # print(type(temp),temp.shape)
-        A1 = to_device(A1,cfg['device'])
-        A2 = to_device(A2,cfg['device'])
-        input = {**input,'aug1':A1,'aug2':A2}
+        A1 = to_device(A1, cfg['device'])
+        A2 = to_device(A2, cfg['device'])
+        input = {**input, 'aug1': A1, 'aug2': A2}
         return input
+
+
 class MixDataset(Dataset):
     def __init__(self, size, dataset):
         self.size = size
@@ -735,7 +787,7 @@ class MixDataset(Dataset):
         input = self.dataset[index]
         # print(input['augs'].shape)
         # input = {'data': input['data'], 'target': input['target']}
-        input = {'data': input['data'], 'augw': input['augw'], 'augs':input['augs'],'target': input['target']}
+        input = {'data': input['data'], 'augw': input['augw'], 'augs': input['augs'], 'target': input['target']}
         # input = {'data': input['data'], 'augw': input['augw'],'target': input['target']}
         return input
 
@@ -744,76 +796,77 @@ class MixDataset(Dataset):
 
 
 def image_test_10crop(resize_size=256, crop_size=224, alexnet=False):
-    
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                   std=[0.229, 0.224, 0.225])
-    
+                                     std=[0.229, 0.224, 0.225])
+
     start_first = 0
     start_center = (resize_size - crop_size - 1) / 2
     start_last = resize_size - crop_size - 1
     data_transforms = [
         transforms.Compose([
-        ResizeImage(resize_size),ForceFlip(),
-        PlaceCrop(crop_size, start_first, start_first),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size), ForceFlip(),
+            PlaceCrop(crop_size, start_first, start_first),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),ForceFlip(),
-        PlaceCrop(crop_size, start_last, start_last),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size), ForceFlip(),
+            PlaceCrop(crop_size, start_last, start_last),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),ForceFlip(),
-        PlaceCrop(crop_size, start_last, start_first),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size), ForceFlip(),
+            PlaceCrop(crop_size, start_last, start_first),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),ForceFlip(),
-        PlaceCrop(crop_size, start_first, start_last),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size), ForceFlip(),
+            PlaceCrop(crop_size, start_first, start_last),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),ForceFlip(),
-        PlaceCrop(crop_size, start_center, start_center),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size), ForceFlip(),
+            PlaceCrop(crop_size, start_center, start_center),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),
-        PlaceCrop(crop_size, start_first, start_first),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size),
+            PlaceCrop(crop_size, start_first, start_first),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),
-        PlaceCrop(crop_size, start_last, start_last),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size),
+            PlaceCrop(crop_size, start_last, start_last),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),
-        PlaceCrop(crop_size, start_last, start_first),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size),
+            PlaceCrop(crop_size, start_last, start_first),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),
-        PlaceCrop(crop_size, start_first, start_last),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size),
+            PlaceCrop(crop_size, start_first, start_last),
+            transforms.ToTensor(),
+            normalize
         ]),
         transforms.Compose([
-        ResizeImage(resize_size),
-        PlaceCrop(crop_size, start_center, start_center),
-        transforms.ToTensor(),
-        normalize
+            ResizeImage(resize_size),
+            PlaceCrop(crop_size, start_center, start_center),
+            transforms.ToTensor(),
+            normalize
         ])
     ]
     return data_transforms
+
+
 class PlaceCrop(object):
     """Crops the given PIL.Image at the particular index.
     Args:
@@ -853,6 +906,7 @@ class ForceFlip(object):
         """
         return img.transpose(Image.FLIP_LEFT_RIGHT)
 
+
 class CenterCrop(object):
     """Crops the given PIL.Image at the center.
     Args:
@@ -878,5 +932,5 @@ class CenterCrop(object):
         th, tw = self.size
         w_off = int((w - tw) / 2.)
         h_off = int((h - th) / 2.)
-        img = img[:, h_off:h_off+th, w_off:w_off+tw]
+        img = img[:, h_off:h_off + th, w_off:w_off + tw]
         return img
