@@ -78,3 +78,6 @@ module_name : None
 register_hook_BN : 0
 post_conv : 0
 num_sup : 0
+run_shot : 1
+temp : 8
+wt_avg : 1

@@ -1,0 +1,3 @@
+python train_classifier_ssDA_target.py --domain_s 'dslr' --unsup_doms 'amazon-webcam'  --model_name resnet50 --d_mode new --device cuda:1 --var_lr 0.0001  --scheduler_name  'ExponentialLR' --cycles 100  --control_name "000101_sup-ft-fix_10_0.5_iid_5-5_0.07_1" --resume_mode 1  --init_seed 2023   --avg_cent 1 --gamma 1
+python train_classifier_ssDA_target.py --domain_s 'dslr' --unsup_doms 'amazon-webcam'  --model_name resnet50 --d_mode new --device cuda:1 --var_lr 0.0001  --scheduler_name  'ExponentialLR' --cycles 100  --control_name "0001015_sup-ft-fix_10_0.5_iid_5-5_0.07_1" --resume_mode 1  --init_seed 2023   --avg_cent 1 --gamma 1.5
+

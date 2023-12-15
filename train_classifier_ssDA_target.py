@@ -202,7 +202,7 @@ def runExperiment():
         # result = resume_DA(cfg['model_tag'])
         # result = resume_DA(cfg['model_tag'],load_tag='best')
         # tag_  = '0_dslr_to_amazon_webcam_resnet50_02'
-        tag_ = '2023_dslr_0.001_resnet50_02_sup-ft-fix'
+        tag_ = '2023_amazon_0.001_resnet50_02_sup-ft-fix'
         # tag_ = '0_dslr_to_amazon_resnet50_01'
         # result = resume_DA(tag_,'checkpoint')
         # result = resume(tag_,'best')
@@ -261,15 +261,15 @@ def runExperiment():
                 cfg['loss_mode'] = 'alt-fix_'
                 # cfg['loss_mode'] = 'fix-mix'
         print(cfg['loss_mode'])
-        if epoch == 1:
-            # model.load_state_dict(server.model_state_dict)
-            #====#
-            test_model.load_state_dict(server.model_state_dict)
-            #====#
-            test_DA(data_loader_sup['test'], test_model, metric, logger, epoch=0,sup=True)
-            for domain_id,data_loader_unsup_ in data_loader_unsup.items():
-                domain = cfg['unsup_list'][domain_id]
-                test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch=0,domain=domain)
+        # if epoch == 1:
+        #     # model.load_state_dict(server.model_state_dict)
+        #     #====#
+        #     test_model.load_state_dict(server.model_state_dict)
+        #     #====#
+        #     test_DA(data_loader_sup['test'], test_model, metric, logger, epoch=0,sup=True)
+        #     for domain_id,data_loader_unsup_ in data_loader_unsup.items():
+        #         domain = cfg['unsup_list'][domain_id]
+        #         test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch=0,domain=domain)
         # exit()
         # train_client(client_dataset_sup['train'], client_dataset_unsup['train'], server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode)

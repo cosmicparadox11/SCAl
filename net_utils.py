@@ -71,7 +71,7 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
     # topk_num = max(all_emd_feat.shape[0] // (args.class_num * args.topk_seg), 1)
     # print(all_emd_feat.shape[0])
     print('target',cfg['target_size'],all_emd_feat.shape[0])
-    topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] *3), 1)
+    topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] *2), 1)
     # topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] * 20), 1)
     # topk_num = 3
     print(topk_num)

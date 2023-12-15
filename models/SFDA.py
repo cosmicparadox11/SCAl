@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 from torchvision import models
 from config import cfg
-from .utils import init_param, make_batchnorm, loss_fn ,info_nce_loss, SimCLR_Loss,elr_loss, register_act_hooks
+from .utils import init_param, make_batchnorm, loss_fn ,info_nce_loss, SimCLR_Loss,elr_loss, register_act_hooks,register_preBN_hooks
 from data import SimDataset 
 from net_utils import Entropy, CrossEntropyLabelSmooth
 def init_weights(m):
@@ -289,7 +289,8 @@ class SFDA(nn.Module):
         super(SFDA, self).__init__()
         ## Activation statistics ##
         self.act_stats = {}
-
+        self.running_mean = {}
+        self.running_var = {}
         self.backbone_arch = cfg['backbone_arch'] # resnet101
         self.embed_feat_dim = cfg['embed_feat_dim'] # 256
         self.class_num = cfg['target_size']          # 12 for VisDA
@@ -507,16 +508,20 @@ def resnet50(momentum=None, track=True):
     # # model = ResNet(data_shape, hidden_size, Block, [1, 1, 1, 1], target_size)
     model = SFDA()
     model.backbone_arch = 'resnet50'
-    model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
-    model = convert_layers(model, torch.nn.BatchNorm1d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
-    if cfg['pre_trained']:
-        print('loading pretrained model')
-        model = get_pretrained_gn(model)
+    # model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
+    # model = convert_layers(model, torch.nn.BatchNorm1d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
+    # if cfg['pre_trained']:
+    #     print('loading pretrained model')
+    #     model = get_pretrained_gn(model)
         # print(model)
         # exit()
     # model.apply(init_param)
-    # model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
-    
+    # print(model,track)
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+    # exit()
+    if cfg['register_hook_BN']:
+        register_preBN_hooks(model, compute_running_mean=cfg['compute_running_mean'], compute_running_var=cfg['compute_running_var'])
+    # exit()
     ## Register forward hook ##
     # register_act_hooks(model, compute_mean_norm=cfg['compute_mean_norm'], compute_std_dev=cfg['compute_std_dev'])
 

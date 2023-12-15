@@ -141,8 +141,9 @@ class Server:
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     # weight = weight / weight.sum()
-                    for i in range(len(valid_client)):
-                        weight[i] = valid_client[i].data_len
+                    if cfg['wt_avg']:
+                        for i in range(len(valid_client)):
+                            weight[i] = valid_client[i].data_len
                     # print(weight.sum())
                     weight = weight / weight.sum()
 
@@ -189,8 +190,9 @@ class Server:
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     # weight = weight / weight.sum()
-                    for i in range(len(valid_client)):
-                        weight[i] = valid_client[i].data_len
+                    if cfg['wt_avg']:
+                        for i in range(len(valid_client)):
+                            weight[i] = valid_client[i].data_len
                 # print(weight.sum())
                     weight = weight / weight.sum()
 
@@ -229,8 +231,9 @@ class Server:
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     # weight = weight / weight.sum()
-                    for i in range(len(valid_client)):
-                        weight[i] = valid_client[i].data_len
+                    if cfg['wt_avg']:
+                        for i in range(len(valid_client)):
+                            weight[i] = valid_client[i].data_len
                     # print(weight.sum())
                     weight = weight / weight.sum()
                     for k, v in model.named_parameters():
@@ -260,8 +263,9 @@ class Server:
                     global_optimizer.zero_grad()
                     weight = torch.ones(len(valid_client))
                     # weight = weight / weight.sum()
-                    for i in range(len(valid_client)):
-                        weight[i] = valid_client[i].data_len
+                    if cfg['wt_avg']:
+                        for i in range(len(valid_client)):
+                            weight[i] = valid_client[i].data_len
                     # print(weight.sum())
                     weight = weight / weight.sum()
                     for k, v in model.named_parameters():
@@ -313,6 +317,8 @@ class Server:
                 elif client[i].active == True  and client[i].cent is None:
                     print('Warning:client centntroid is None')
             if self.avg_cent_ is not None:
+                print('averaging centroids')
+                # exit()
                 self.avg_cent_=self.avg_cent_/len(client)
                 if self.avg_cent is None:
                     self.avg_cent = self.avg_cent_
@@ -1289,7 +1295,10 @@ class Client:
                 # print(self.cent)
                 # print(self.cent,self.avg_cent)
                 # loss,cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
-                loss,cent = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
+                if cfg['run_shot']:
+                    loss,cent = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
+                else:
+                    loss,cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
                 self.cent = cent
                 # print(self.cent)
                 output['loss'] = loss
@@ -1487,11 +1496,12 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
             #server_cent = (server_cent, cfg['device'])
 
             similarity_mat = torch.matmul(clnt_cent,server_cent)
-            temp = 8.0
+            temp = cfg['temp']
             similarity_mat = torch.exp(similarity_mat/temp)
             pos_m = torch.diag(similarity_mat)
             pos_neg_m = torch.sum(similarity_mat,axis = 1)
             nce_loss = -1.0*torch.sum(torch.log(pos_m/pos_neg_m))
+            print('nce_loss',nce_loss)
             loss += cfg['gamma']*nce_loss
             #print("reg_loss:",reg_loss,"ent_loss:",ent_loss,"psd_loss:",psd_loss,"nce_loss:",nce_loss)
         if cfg['add_fix'] ==1:
@@ -1541,6 +1551,7 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         input = to_device(input, cfg['device'])
         optimizer.zero_grad()
         psd_label = all_psd_label[input['id']]
+        psd_label_ = all_psd_label[input['id']]
 
         if cfg['add_fix']==0:
             embed_feat, pred_cls = model(input)
@@ -1558,11 +1569,13 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         ent_loss = - torch.sum(torch.log(pred_cls) * pred_cls, dim=1).mean()
         psd_loss = - torch.sum(torch.log(pred_cls) * psd_label, dim=1).mean()
         
-        if epoch_idx >= 1.0:
-            # loss = 2.0 * psd_loss
-            loss = ent_loss + 1.0 * psd_loss
-        else:
-            loss = - reg_loss + ent_loss
+        unique_labels = torch.unique(psd_label_).cpu().numpy() 
+        # cent = EMA_update_multi_feat_cent_with_feat_simi(glob_multi_feat_cent, embed_feat, decay=0.9999)
+        # if epoch_idx >= 1.0:
+        #     # loss = 2.0 * psd_loss
+        #     loss = ent_loss + 1.0 * psd_loss
+        # else:
+        #     loss = - reg_loss + ent_loss
         #print("loss_reg:",loss)
         #==================================================================#
         # SOFT FEAT SIMI LOSS
@@ -1573,66 +1586,94 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         dym_label = torch.softmax(dym_feat_simi, dim=1)    #[N, C]
         dym_psd_loss = - torch.sum(torch.log(pred_cls) * dym_label, dim=1).mean() - torch.sum(torch.log(dym_label) * pred_cls, dim=1).mean()
         
-        if epoch_idx >= 1.0:
-            loss += 0.5 * dym_psd_loss
+        # if epoch_idx >= 1.0:
+        #     loss += 0.5 * dym_psd_loss
 
         #print("loss_reg_dyn:",loss)
         #==================================================================#
-        # loss = ent_loss + 1* psd_loss + 0.1 * dym_psd_loss - reg_loss + cfg['wt_actloss']*act_loss
+        loss = ent_loss + 1* psd_loss + 0.3 * dym_psd_loss - reg_loss #+ cfg['wt_actloss']*act_loss
         #==================================================================#
         #==================================================================#
         #==================================================================#
+        # print('bmd_loss',loss)
         # lr_scheduler(optimizer, iter_idx, iter_max)
         # optimizer.zero_grad()
         #==================================================================#
         # print(cent.shape,avg_cent.shape)
         #print("cfg_avg_cent:",cfg['avg_cent'])
-        if cfg['avg_cent'] and avg_cent is not None:
-            #cent_loss = torch.nn.MSELoss()
-            #loss+=cfg['gamma']*cent_loss(cent.squeeze(),avg_cent.squeeze())
-            # loss += cfg['gamma']*dist/avg_cent.shape[0]
+        # if cfg['avg_cent'] and avg_cent is not None:
+        #     #cent_loss = torch.nn.MSELoss()
+        #     #loss+=cfg['gamma']*cent_loss(cent.squeeze(),avg_cent.squeeze())
+        #     # loss += cfg['gamma']*dist/avg_cent.shape[0]
 
-            # print(loss)
+        #     # print(loss)
      
-            batch_size = embed_feat.shape[0]
-            class_num  = glob_multi_feat_cent.shape[0]
-            multi_num  = glob_multi_feat_cent.shape[1]
+        #     batch_size = embed_feat.shape[0]
+        #     class_num  = glob_multi_feat_cent.shape[0]
+        #     multi_num  = glob_multi_feat_cent.shape[1]
     
-            normed_embed_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
-            feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_embed_feat)
-            feat_simi = feat_simi.flatten(1) #[N, C*M]
-            feat_simi = torch.softmax(feat_simi, dim=1).reshape(batch_size, class_num, multi_num) #[N, C, M]
+        #     normed_embed_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
+        #     feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_embed_feat)
+        #     feat_simi = feat_simi.flatten(1) #[N, C*M]
+        #     feat_simi = torch.softmax(feat_simi, dim=1).reshape(batch_size, class_num, multi_num) #[N, C, M]
     
-            curr_multi_feat_cent = torch.einsum("ncm, nd -> cmd", feat_simi, normed_embed_feat)
-            curr_multi_feat_cent /= (torch.sum(feat_simi, dim=0).unsqueeze(2) + 1e-8)
-            #print("cent:",cent.shape)
-            clnt_cent = torch.squeeze(curr_multi_feat_cent)
-            #print("embed_feat:",embed_feat.shape)
-            #clnt_cent = torch.squeeze(embed_feat)
-            #normed_emd_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
-            #dym_feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_emd_feat)
-            server_cent = torch.squeeze(avg_cent)
+        #     curr_multi_feat_cent = torch.einsum("ncm, nd -> cmd", feat_simi, normed_embed_feat)
+        #     curr_multi_feat_cent /= (torch.sum(feat_simi, dim=0).unsqueeze(2) + 1e-8)
+        #     #print("cent:",cent.shape)
+        #     clnt_cent = torch.squeeze(curr_multi_feat_cent)
+        #     #print("embed_feat:",embed_feat.shape)
+        #     #clnt_cent = torch.squeeze(embed_feat)
+        #     #normed_emd_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
+        #     #dym_feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_emd_feat)
+        #     server_cent = torch.squeeze(avg_cent)
             
-            #print("clnt_cent:",clnt_cent) 
+        #     #print("clnt_cent:",clnt_cent) 
 
-            clnt_cent = clnt_cent/torch.norm(clnt_cent,dim=1,keepdim=True)
-            server_cent = server_cent/torch.norm(server_cent,dim=1,keepdim=True)
+        #     clnt_cent = clnt_cent/torch.norm(clnt_cent,dim=1,keepdim=True)
+        #     server_cent = server_cent/torch.norm(server_cent,dim=1,keepdim=True)
             
+        #     server_cent = torch.transpose(server_cent,0,1)
+        #     similarity_mat = torch.matmul(clnt_cent,server_cent)
+        #     #print("similarity_mat:",similarity_mat)
+        #     temp = 8.0
+        #     similarity_mat = torch.exp(similarity_mat/temp)
+        #     pos_m = torch.diag(similarity_mat)
+        #     pos_neg_m = torch.sum(similarity_mat,axis = 1)
+            
+        #     #print("pos_m:",pos_m,"\t","neg_m:",pos_neg_m)
+        #     nce_loss = -1.0*torch.sum(torch.log(pos_m/pos_neg_m))
+        #     #print("loss:", loss,"nce_loss:",nce_loss)
+        #     if epoch_idx >= 1.0:
+        #         loss += cfg['gamma']*nce_loss
+            
+        if cfg['avg_cent'] and avg_cent is not None:
+        #if True:    
+            # cent_loss = torch.nn.MSELoss()
+            # cent_mse = cent_loss(cent.squeeze(),avg_cent.squeeze())
+            # # print('centroid_loss',cent_mse)
+            # loss+=cfg['gamma']*cent_mse
+            cent_batch = torch.matmul(torch.transpose(psd_label,0,1), embed_feat)
+            #print("clnt_cent:",cent_batch)
+            cent_batch = cent_batch / (1e-9 + psd_label.sum(axis=0)[:,None])
+            server_cent = torch.squeeze(torch.Tensor(avg_cent.cpu()))
+            #print("server_cent:",server_cent.shape)
+            clnt_cent = cent_batch[unique_labels]/torch.norm(cent_batch[unique_labels],dim=1,keepdim=True)
+            server_cent = server_cent/torch.norm(server_cent,dim=1,keepdim=True)
+            server_cent = server_cent.to(cfg['device'])
             server_cent = torch.transpose(server_cent,0,1)
+            #print("server_cent:",server_cent.shape)
+            #print("clnt_cent:",clnt_cent.shape)
+            #server_cent = (server_cent, cfg['device'])
+
             similarity_mat = torch.matmul(clnt_cent,server_cent)
-            #print("similarity_mat:",similarity_mat)
             temp = 8.0
             similarity_mat = torch.exp(similarity_mat/temp)
             pos_m = torch.diag(similarity_mat)
             pos_neg_m = torch.sum(similarity_mat,axis = 1)
-            
-            #print("pos_m:",pos_m,"\t","neg_m:",pos_neg_m)
             nce_loss = -1.0*torch.sum(torch.log(pos_m/pos_neg_m))
-            #print("loss:", loss,"nce_loss:",nce_loss)
-            if epoch_idx >= 1.0:
-                loss += cfg['gamma']*nce_loss
-            
-            
+            loss += cfg['gamma']*nce_loss
+
+
         if cfg['kl'] == 1:
             loss+=cfg['kl_weight']*kl_loss
 
