@@ -39,6 +39,8 @@ def main():
     exp_num = cfg['control_name'].split('_')[0]
     if cfg['domain_s'] in ['amazon','dslr','webcam']:
         cfg['data_name'] = 'office31'
+    elif cfg['domain_s'] in ['art','clipart','product','realworld']:
+        cfg['data_name'] = 'OfficeHome'
     elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
         cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
@@ -82,6 +84,9 @@ def runExperiment():
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'])
         elif domain in ['dslr','webcam','amazon']:
             cfg['data_name_unsup'] = 'office31'
+            client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
+        elif domain in ['art','clipart','product','realworld']:
+            cfg['data_name_unsup'] = 'OfficeHome'
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
     ##############
     # exit()

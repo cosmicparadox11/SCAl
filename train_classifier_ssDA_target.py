@@ -40,6 +40,8 @@ def main():
     exp_num = cfg['control_name'].split('_')[0]
     if cfg['domain_s'] in ['amazon','dslr','webcam']:
         cfg['data_name'] = 'office31'
+    elif cfg['domain_s'] in ['art', 'clipart','product','realworld']:
+        cfg['data_name'] = 'OfficeHome'
     elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
         cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
@@ -82,6 +84,9 @@ def runExperiment():
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'])
         elif domain in ['dslr','webcam','amazon']:
             cfg['data_name_unsup'] = 'office31'
+            client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
+        elif domain in ['art','clipart','product','realworld']:
+            cfg['data_name_unsup'] = 'OfficeHome'
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
     ##############
     # exit()
@@ -191,8 +196,7 @@ def runExperiment():
         #             print(a,len(b))
 
     if cfg['loss_mode'] != 'sup':
-        metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
-                         'test': ['Loss', 'Accuracy']})
+        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     else:
         metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     # if cfg['loss_mode'] == 'sim':
@@ -204,7 +208,7 @@ def runExperiment():
         # tag_  = '0_dslr_to_amazon_webcam_resnet50_02'
         tag_ = '2023_amazon_0.001_resnet50_02_sup-ft-fix'
         # tag_ = '0_dslr_to_amazon_resnet50_01'
-        # result = resume_DA(tag_,'checkpoint')
+        # result = resume_DA(tag_,'checkpoingt')
         # result = resume(tag_,'best')
         result = resume(tag_,'checkpoint')
         # import pickle
@@ -234,7 +238,7 @@ def runExperiment():
             # if cfg['new_lr'] == 1:
             #     optimizer.param_groups[0]['lr']=cfg['var_lr']
             # logger = result['logger']
-            # # logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+            # logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
             # # cfg['loss_mode'] = 'alt-fix'
         else:
             server = make_server(model)

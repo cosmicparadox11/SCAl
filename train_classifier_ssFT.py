@@ -98,7 +98,7 @@ def runExperiment():
     elif cfg['d_mode'] == 'new':
         data_split = split_class_dataset(client_dataset,cfg['data_split_mode'])
     if cfg['loss_mode'] != 'sup':
-        metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
+        metric = Metric({'train': ['Loss', 'Accuracy'],
                          'test': ['Loss', 'Accuracy']})
     else:
         metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
@@ -397,6 +397,11 @@ def train_client(batchnorm_dataset, client_dataset, server, client, supervised_c
         m = client_id[i]
         # print(type(client[m].data_split['train']))
         dataset_m = separate_dataset(client_dataset, client[m].data_split['train'])
+        # bincounts = torch.bincount(torch.tensor(dataset_m.target), minlength=10)
+        # if i < 4:
+        #     print(f'{m}: {bincounts} - {torch.sum(bincounts).data}')
+        #     continue
+        # assert False
         if 'batch' not in cfg['loss_mode'] and 'frgd' not in cfg['loss_mode'] and 'fmatch' not in cfg['loss_mode']:
             # cfg['pred'] = True
             dataset_m = client[m].make_dataset(dataset_m, metric, logger)

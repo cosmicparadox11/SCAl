@@ -39,10 +39,12 @@ def main():
     # cfg['var_lr'] = 0.01
     if cfg['domain_s'] in ['amazon','dslr','webcam']:
         cfg['data_name'] = 'office31'
+    elif cfg['domain_s'] in ['art','clipart','product','realworld']:
+        cfg['data_name'] = 'OfficeHome'
     elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
         cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
-        if cfg['data_name'] == 'office31':
+        if cfg['data_name'] in ['office31','OfficeHome']:
             model_tag_list = [str(seeds[i]), cfg['domain_s'],cfg['domain_u'],str(cfg['var_lr']), cfg['model_name'],exp_num,exp_name]
             model_tag_list_load = [str(seeds[i]), cfg['domain_s'],str(cfg['var_lr']), cfg['model_name'],exp_num,exp_name]
         else:
