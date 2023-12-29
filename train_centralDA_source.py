@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from data import fetch_dataset, make_data_loader, separate_dataset_su, make_batchnorm_stats,FixTransform
+from data import fetch_dataset, make_data_loader, separate_dataset_su, make_batchnorm_stats,FixTransform,fetch_dataset_full_test
 from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset,separate_dataset_DA, separate_dataset_su, \
     make_batchnorm_dataset_su, make_batchnorm_stats , split_class_dataset,split_class_dataset_DA,make_data_loader_DA
 from metrics import Metric
@@ -40,7 +40,7 @@ def main():
     if cfg['domain_s'] in ['amazon','dslr','webcam']:
         cfg['data_name'] = 'office31'
     elif cfg['domain_s'] in ['art','clipart','product','realworld']:
-        cfg['data_name'] = 'OfficeHome'
+        cfg['data_name'] = cfg['data_name_unsup'] = 'OfficeHome'
     elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
         cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
@@ -72,8 +72,15 @@ def runExperiment():
     # dataset = fetch_dataset(cfg['data_name'])
     ####
     client_dataset_sup = fetch_dataset(cfg['data_name'],domain=cfg['domain_s'])
+    print(len(client_dataset_sup['train']),client_dataset_sup['train'].transform)
+    print(len(client_dataset_sup['test']),client_dataset_sup['test'].transform)
+    # exit()
     # print(cfg['data_name_unsup'])
-    client_dataset_unsup = fetch_dataset(cfg['data_name_unsup'],domain=cfg['domain_u'])
+    client_dataset_unsup = fetch_dataset_full_test(cfg['data_name_unsup'],domain=cfg['domain_u'])
+    # print(len(client_dataset_unsup['test']),client_dataset_unsup['test'].transform)
+    print(client_dataset_unsup)
+    
+    # exit()
     #####
     # domains=['amazon','dslr']
     # k = get_office31(["amazon","dslr"],[],folder='data',download =True)
@@ -82,6 +89,7 @@ def runExperiment():
     # client_dataset_sup,client_dataset_unsup=k,k
     # process_dataset(dataset)
     print(cfg['domain_s'])
+
     process_dataset(client_dataset_sup,client_dataset_unsup)
     # cfg['num_supervised'] == -1
     # client_dataset_sup['train'], _, supervised_idx_sup = separate_dataset_su(client_dataset_sup['train'])
@@ -96,22 +104,28 @@ def runExperiment():
     # data_loader = make_data_loader(dataset, 'global')
     transform_sup = FixTransform(cfg['data_name'])
     client_dataset_sup['train'].transform = transform_sup
+    # # print(client_dataset_sup['train'].dataset.datasets.transform)
+    # # print(client_dataset_unsup)
+    # # print(client_dataset_sup['train'].__dict__.keys())
+    # # exit()
     if not cfg['test_10_crop']:
         client_dataset_sup['test'].transform = transform_sup
     # transform_unsup = FixTransform(cfg['data_name_unsup'])
     # client_dataset_unsup['train'].transform = transform_unsup
     # print(cfg)
     # bt = cfg['bt']
-    bt = 50
-    cfg['global']['batch_size']={'train':bt,'test':10}
+    bt = 64
+    cfg['global']['batch_size']={'train':bt,'test':2*64}
     print(cfg['global']['batch_size'])
     # print(client_dataset_sup.keys())
     data_loader_sup = make_data_loader_DA(client_dataset_sup, 'global')
     # for input in data_loader_sup['train']:
     #     print(type(input['data'][0]))
-    #     for i in input['data']:
-    #         print(i.shape)
-    #     exit()
+    #     print(input['augw'][0].shape)
+    #     # for i in input['data']:
+    #     #     print(i.shape)
+    #     # exit()
+    # exit()
     # data_loader_unsup = make_data_loader(client_dataset_unsup, 'global')
     model = eval('models.{}()'.format(cfg['model_name']))
     model_t = eval('models.{}()'.format(cfg['model_name']))
@@ -124,7 +138,7 @@ def runExperiment():
     # model_t.apply(init_param)
     model = model.to(cfg['device'])
     model_t = model_t.to(cfg['device'])
-    print(model)
+    # print(model)
     # pre_model = torch.load('/home/sampathkoti/Downloads/R-50-GN.pkl',encoding= "latin1")
     # print(pre_model)
     ####
@@ -168,6 +182,36 @@ def runExperiment():
     # net = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     # print(model)
     # print(cfg['local'].keys())
+    # print(model.state_dict().keys())
+    # exit()
+    # if cfg['pretrained_source']:
+    #     path_source = '/home/sampathkoti/Downloads/A-20231219T043936Z-001/A/'
+
+    #     F = torch.load(path_source + 'source_F.pt')
+    #     B = torch.load(path_source + 'source_B.pt')
+    #     C = torch.load(path_source + 'source_C.pt')
+    #     # print(F.keys())
+    #     # exit()
+    #     # model.backbone_layer.load_state_dict(torch.load(path_source + 'source_F.pt'))
+    #     # model.feat_embed_layer.load_state_dict(torch.load(path_source + 'source_B.pt'))
+    #     # model.class_layer.load_state_dict(torch.load(path_source + 'source_C.pt'))
+    #     model.backbone_layer.load_state_dict(F)
+    #     model.feat_embed_layer.load_state_dict(B)
+    #     model.class_layer.load_state_dict(C)
+        # # exit()
+        # model.backbone_layer.conv1 = F.conv1
+        # model.backbone_layer.bn1 = F.bn1
+        # # model.backbone_layerbn1 = torch.nn.GroupNorm(2, 64)
+        # model.backbone_layer.relu = F.relu
+        # model.backbone_layer.maxpool = F.maxpool
+        # model.backbone_layer.layer1 = F.layer1
+        # model.backbone_layer.layer2 = F.layer2
+        # model.backbone_layer.layer3 = F.layer3
+        # model.backbone_layer.layer4 = F.layer4
+        # model.backbone_layer.avgpool = F.avgpool
+        # # model.backbone_layer.backbone_feat_dim = F.fc.in_features
+    # print(model)
+    # exit()
     cfg['local']['lr'] = cfg['var_lr']
     # print(cfg['global']['scheduler_name'])
     cfg['global']['scheduler_name'] = cfg['scheduler_name']
@@ -193,10 +237,27 @@ def runExperiment():
     cfg['model_name'] = 'global'
     # print(list(model.buffers()))
     cfg['global']['num_epochs'] = cfg['cycles']
+    cfg['local']['lr'] = cfg['var_lr']
+    param_group = []
+    learning_rate = cfg['var_lr']
+    print('learning rate',learning_rate)
+    for k, v in model.backbone_layer.named_parameters():
+        param_group += [{'params': v, 'lr': learning_rate*0.1}]
+    for k, v in model.feat_embed_layer.named_parameters():
+        param_group += [{'params': v, 'lr': learning_rate}]
+    for k, v in model.class_layer.named_parameters():
+        param_group += [{'params': v, 'lr': learning_rate}]   
+    optimizer = torch.optim.SGD(param_group)
+    optimizer = op_copy(optimizer)
+    # scheduler = make_scheduler(optimizer, 'global')
+    # print(len(data_loader_sup['train']))
+    # exit()
+    cfg['iter_num'] =0 
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         # cfg['model_name'] = 'local'
         logger.safe(True)
         # torch.cuda.empty_cache()
+        
         train(data_loader_sup['train'], model, optimizer, metric, logger, epoch)
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
@@ -214,7 +275,7 @@ def runExperiment():
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
-        scheduler.step()
+        # scheduler.step()
         logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         result = {'cfg': cfg, 'epoch': epoch + 1,
@@ -419,11 +480,19 @@ def runExperiment():
     #                     var_scale=25e-6, random_labels=False, l2_coeff=0.0)
     return
 
+def lr_scheduler(optimizer, iter_num, max_iter, gamma=10, power=0.75):
+    decay = (1 + gamma * iter_num / max_iter) ** (-power)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = param_group['lr0'] * decay
+        param_group['weight_decay'] = 1e-3
+        param_group['momentum'] = 0.9
+        param_group['nesterov'] = True
 
 def train(data_loader, model, optimizer, metric, logger, epoch):
     model.train(True)
     start_time = time.time()
     # model.projection.requires_grad_(False)
+    
     for i, input in enumerate(data_loader):
         # torch.cuda.empty_cache()
         input = collate(input)
@@ -431,6 +500,13 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         input = to_device(input, cfg['device'])
         optimizer.zero_grad()
         input['loss_mode'] = cfg['loss_mode']
+        if input_size == 1:
+            break
+        # print(input['data'].shape)
+        # exit()
+        cfg['iter_num']+=1
+        max_iter = cfg['cycles']*len(data_loader)
+        lr_scheduler(optimizer, iter_num=cfg['iter_num'], max_iter=max_iter)
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
         # print(output['loss'])
@@ -550,6 +626,10 @@ def train_da(dataset, model, optimizer, metric, logger, epoch):
     #         print(logger.write('train', metric.metric_name['train']))
     return
 
+def op_copy(optimizer):
+    for param_group in optimizer.param_groups:
+        param_group['lr0'] = param_group['lr']
+    return optimizer
 
 def test(data_loader, model, metric, logger, epoch):
     with torch.no_grad():

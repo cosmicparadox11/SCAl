@@ -386,7 +386,7 @@ class SFDA(nn.Module):
                 criterion = CrossEntropyLabelSmooth(num_classes=cfg['target_size'], epsilon=0.1, reduction=True)
                 act_loss = sum([item['mean_norm'] for item in list(self.act_stats.values())])
                 # print(act_loss)
-                output['loss'] = criterion(output['target'], input['target']) + cfg['wt_actloss']*act_loss
+                output['loss'] = criterion(output['target'], input['target']) #+ cfg['wt_actloss']*act_loss
                 # print(output['loss'])
                 # output['loss'] = loss_fn(output['target'], input['target'])
                 
@@ -501,7 +501,7 @@ def resnet_sfda(momentum=None, track=True):
     # model.apply(init_param)
     model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
     return model
-def resnet50(momentum=None, track=True):
+def resnet50(momentum=0.1, track=True):
     # data_shape = cfg['data_shape']
     # target_size = cfg['target_size']
     # hidden_size = cfg['resnet9']['hidden_size']

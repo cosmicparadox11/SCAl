@@ -108,12 +108,12 @@ def recur(fn, input, *args):
 
 def process_dataset(dataset,dataset_unsup= None):
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
-    print(cfg['data_size'])
+    # print(dataset,cfg['data_size'])
     cfg['target_size'] = dataset['train'].target_size
     if dataset_unsup is not None:
         cfg['data_size_unsup'] = {'train': len(dataset_unsup['train']), 'test': len(dataset_unsup['test'])}
         cfg['target_size_unsup'] = dataset_unsup['train'].target_size
-        print(cfg['data_size_unsup'])
+        # print(dataset_unsup,cfg['data_size_unsup'])
 
     return
 def process_dataset_multi(dataset,dataset_unsup_dict= None):
@@ -168,7 +168,7 @@ def process_control():
         cfg['server']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][1])))
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
-        cfg['client']['batch_size'] = {'train': 10, 'test': 10}
+        cfg['client']['batch_size'] = {'train': 10, 'test': 64}
         cfg['client']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][0])))
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
@@ -177,7 +177,7 @@ def process_control():
         cfg['local']['weight_decay'] = 5e-4
         cfg['local']['nesterov'] = True
         cfg['global'] = {}
-        cfg['global']['batch_size'] = {'train': 10, 'test': 10}
+        cfg['global']['batch_size'] = {'train': 10, 'test': 64}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
         cfg['global']['num_epochs'] = 150
         cfg['global']['optimizer_name'] = 'SGD'
@@ -200,9 +200,9 @@ def process_control():
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
         cfg[model_name]['num_epochs'] = 400
         if cfg['num_supervised'] > 1000 or cfg['num_supervised'] == -1:
-            cfg[model_name]['batch_size'] = {'train': 10, 'test':10}
+            cfg[model_name]['batch_size'] = {'train': 10, 'test':64}
         else:
-            cfg[model_name]['batch_size'] = {'train': 10, 'test': 10}
+            cfg[model_name]['batch_size'] = {'train': 10, 'test': 64}
     return
 
 
@@ -286,6 +286,17 @@ def make_scheduler(optimizer, tag):
                                                          min_lr=cfg[tag]['min_lr'])
     elif cfg[tag]['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg[tag]['lr'], max_lr=10 * cfg[tag]['lr'])
+    
+    # elif cfg[tag]['scheduler_name'] == 'lr_scheduler'
+    #     def lr_scheduler(optimizer, iter_num, max_iter, gamma=10, power=0.75):
+    #         decay = (1 + gamma * iter_num / max_iter) ** (-power)
+    #         for param_group in optimizer.param_groups:
+    #             param_group['lr'] = param_group['lr0'] * decay
+    #             param_group['weight_decay'] = 1e-3
+    #             param_group['momentum'] = 0.9
+    #             param_group['nesterov'] = True
+    #     scheduler = 
+    # return optimizer
     else:
         raise ValueError('Not valid scheduler name')
     return scheduler

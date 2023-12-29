@@ -10,7 +10,7 @@ import numpy as np
 import random
 from config import cfg, process_args
 from data import fetch_dataset, split_dataset, make_data_loader, separate_dataset,separate_dataset_DA, separate_dataset_su, \
-    make_batchnorm_dataset_su, make_batchnorm_stats , split_class_dataset,split_class_dataset_DA,make_data_loader_DA,make_batchnorm_stats_DA
+    make_batchnorm_dataset_su, make_batchnorm_stats , split_class_dataset,split_class_dataset_DA,make_data_loader_DA,make_batchnorm_stats_DA,fetch_dataset_full_test
 from metrics import Metric
 from modules import Server, Client
 from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate,resume_DA,process_dataset_multi
@@ -68,9 +68,11 @@ def runExperiment():
     torch.cuda.empty_cache()
     # print(cfg['gm'])
     #server_dataset = fetch_dataset(cfg['data_name'])
+    print(cfg['data_name'])
     client_dataset_sup = fetch_dataset(cfg['data_name'],domain=cfg['domain_s'])
-    
-
+    # print(cfg['data_name'])
+    # print(client_dataset_sup)
+    # exit()
     # client_dataset_unsup = fetch_dataset(cfg['data_name_unsup'],domain=cfg['domain_u'])
     #############
     print('list of un supervised domain')
@@ -87,7 +89,10 @@ def runExperiment():
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
         elif domain in ['art','clipart','product','realworld']:
             cfg['data_name_unsup'] = 'OfficeHome'
-            client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
+            cfg['data_name_sup'] = 'OfficeHome'
+            client_dataset_unsup[i] = fetch_dataset_full_test(cfg['data_name_unsup'],domain=domain)
+            # client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
+            # print(client_dataset_unsup[i])
     ##############
     # exit()
     # print(client_dataset_unsup.keys())
@@ -127,8 +132,30 @@ def runExperiment():
         model = eval('models.{}()'.format(cfg['model_name']))
         model = torch.nn.DataParallel(model,device_ids = [0, 1])
         model.to(cfg["device"])
-    print(model)
+    # print(model)
     # exit()
+    if cfg['pretrained_source']:
+        print('loading pretrained resnet50 model ')
+        # path_source = '/home/sampathkoti/Downloads/A-20231219T043936Z-001/A/'
+        path_source = '/home/sampathkoti/codes/shot/SHOT/object/ckps/source/pda/office-home/A/'
+
+        F = torch.load(path_source + 'source_F.pt')
+        B = torch.load(path_source + 'source_B.pt')
+        C = torch.load(path_source + 'source_C.pt')
+        # print(F.keys())
+        # exit()
+        model.backbone_layer.load_state_dict(torch.load(path_source + 'source_F.pt'))
+        model.feat_embed_layer.load_state_dict(torch.load(path_source + 'source_B.pt'))
+        model.class_layer.load_state_dict(torch.load(path_source + 'source_C.pt'))
+        # print(model.feat_embed_layer.state_dict())
+        # # exit()
+        # print(B)
+        # exit()
+        # model.backbone_layer.load_state_dict(F)
+        # model.feat_embed_layer.load_state_dict(B)
+        # model.class_layer.load_state_dict(C)
+        # print(model.feat_embed_layer.state_dict())
+        # exit()
     cfg['local']['lr'] = cfg['var_lr']
     optimizer = make_optimizer(model.parameters(), 'local')
     scheduler = make_scheduler(optimizer, 'global')
@@ -206,11 +233,13 @@ def runExperiment():
         # result = resume_DA(cfg['model_tag'])
         # result = resume_DA(cfg['model_tag'],load_tag='best')
         # tag_  = '0_dslr_to_amazon_webcam_resnet50_02'
-        tag_ = '2023_amazon_0.001_resnet50_02_sup-ft-fix'
+        #train_2023_clipart_0.001_resnet50_4_sup-ft-fix
+        # tag_ = '2023_clipart_0.001_resnet50_4_sup-ft-fix'
+        tag_ = cfg['tag_']
         # tag_ = '0_dslr_to_amazon_resnet50_01'
         # result = resume_DA(tag_,'checkpoingt')
-        # result = resume(tag_,'best')
-        result = resume(tag_,'checkpoint')
+        result = resume(tag_,'best')
+        # result = resume(tag_,'checkpoint')
         # import pickle
         # path = "/home/sampathkoti/Downloads/R-50-GN.pkl"
         # # m = pickle.load(open(path, 'rb'))
@@ -226,6 +255,7 @@ def runExperiment():
             # server.model_state_dict = server_pre.model_state_dict
             server.model_state_dict=result['model_state_dict']
             last_epoch = 1
+            
             # data_split_sup = result['data_split_sup']
             # data_split_unsup = result['data_split_unsup']
             # split_len = result['split_len']
@@ -265,16 +295,21 @@ def runExperiment():
                 cfg['loss_mode'] = 'alt-fix_'
                 # cfg['loss_mode'] = 'fix-mix'
         print(cfg['loss_mode'])
-        # if epoch == 1:
-        #     # model.load_state_dict(server.model_state_dict)
-        #     #====#
-        #     test_model.load_state_dict(server.model_state_dict)
-        #     #====#
-        #     test_DA(data_loader_sup['test'], test_model, metric, logger, epoch=0,sup=True)
-        #     for domain_id,data_loader_unsup_ in data_loader_unsup.items():
-        #         domain = cfg['unsup_list'][domain_id]
-        #         test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch=0,domain=domain)
-        # exit()
+        if epoch == 1:
+
+            # model.load_state_dict(server.model_state_dict)
+            #====#
+            test_model.load_state_dict(server.model_state_dict)
+            # print(test_model.feat_embed_layer.state_dict())
+            # exit()
+            #====#
+            test_DA(data_loader_sup['test'], test_model, metric, logger, epoch=0,sup=True)
+            for domain_id,data_loader_unsup_ in data_loader_unsup.items():
+                # print(data_loader_unsup_)
+                domain = cfg['unsup_list'][domain_id]
+                print(domain,domain_id)
+                test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch=0,domain=domain)
+        exit()
         # train_client(client_dataset_sup['train'], client_dataset_unsup['train'], server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         # train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode,scheduler)

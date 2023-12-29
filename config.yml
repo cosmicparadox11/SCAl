@@ -81,3 +81,5 @@ num_sup : 0
 run_shot : 1
 temp : 8
 wt_avg : 1
+pretrained_source : 0
+tag_ : None

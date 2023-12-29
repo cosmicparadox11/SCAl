@@ -5,7 +5,7 @@ import models
 from config import cfg
 from Gausian import GaussianBlur
 from torchvision import transforms
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset,ConcatDataset ,random_split
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
 # from pytorch_adapt.datasets import DataloaderCreator, get_office31
@@ -34,6 +34,7 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
 def fetch_dataset(data_name, domain=None):
     import datasets
     dataset = {}
+    # transform_sup = FixTransform(cfg['data_name'])
     print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
     if data_name in ['MNIST', 'FashionMNIST']:
@@ -56,6 +57,8 @@ def fetch_dataset(data_name, domain=None):
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['office31', 'OfficeHome']:
         # print(domain)
+        # dataset['train'] = eval('datasets.{}(root=root, domain=domain, split=\'train\', '
+        #                         'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['train'] = eval('datasets.{}(root=root, domain=domain, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         # dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
@@ -64,8 +67,11 @@ def fetch_dataset(data_name, domain=None):
         # dataset['train'] = datasets.office31(root=root, domain=domain, split='train',
         #                                      transform=datasets.Compose([transforms.ToTensor()]))
 
-        dataset['train'].transform = datasets.Compose([transforms.ToTensor()])
-
+        # dataset['train'].transform = datasets.Compose([transforms.ToTensor()])
+        
+        # exit()
+        # print(dataset['train'].__dict__.keys())
+        # exit()
         if cfg['test_10_crop']:
             crop_list = image_test_10crop()
             for i in range(10):
@@ -77,13 +83,16 @@ def fetch_dataset(data_name, domain=None):
             crop_size = 224
             dataset['test'] = eval('datasets.{}(root=root, domain=domain, split=\'test\', '
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+            print('original test len',len(dataset['test']))
+            
             dataset['test'].transform = datasets.Compose(
                 [
                     # transforms.CenterCrop(224),
                     # transforms.ToTensor(),
                     # transforms.Normalize(*data_stats[data_name])
                     # # transforms.RandomResizedCrop(224)
-                    ResizeImage(resize_size),
+                    # ResizeImage(resize_size),
+                    transforms.Resize((resize_size, resize_size)),
                     # transforms.RandomResizedCrop(crop_size),
                     # transforms.RandomHorizontalFlip(),
                     transforms.CenterCrop(crop_size),
@@ -92,6 +101,45 @@ def fetch_dataset(data_name, domain=None):
                 ]
 
             )
+        # dataset['train'].transform = transform_sup
+        # dataset['test'].transform = transform_sup
+        # target_size_ = dataset['train'].target_size
+        # print('original train len',len(dataset['train']))
+        # # print(dataset['train'].__dict__.keys())
+        # dataset_ = {}
+        # dataset['train'] = ConcatDataset([dataset['train'],dataset['test']])
+        # # print(dataset_['train'].datasets)
+        # # print(dataset_['train'].datasets[0].__dict__.keys())
+        # # exit()
+        # data_len_total = len(dataset['train'])
+        # print('dataset length',data_len_total)
+        # train_split_len_,test_split_len_ = int(0.9*data_len_total),data_len_total-int(0.9*data_len_total)
+        # print('train test split',train_split_len_,test_split_len_)
+        # dataset['train'],dataset['test'] = random_split(dataset['train'],[train_split_len_,test_split_len_])
+        # # print(dataset['train'].target_size)
+        # # exit()
+        # # print(dataset_['train'].dataset.datasets[0].__dict__.keys())
+        # # exit()
+        # # dataset['train'].transform = datasets.Compose([transforms.ToTensor()])
+        # # # dataset['train'].transform = transform_sup
+        # # dataset['test'].transform = datasets.Compose(
+        # #         [
+        # #             # transforms.CenterCrop(224),
+        # #             # transforms.ToTensor(),
+        # #             # transforms.Normalize(*data_stats[data_name])
+        # #             # # transforms.RandomResizedCrop(224)
+        # #             # ResizeImage(resize_size),
+        # #             transforms.Resize((resize_size, resize_size)),
+        # #             # transforms.RandomResizedCrop(crop_size),
+        # #             # transforms.RandomHorizontalFlip(),
+        # #             transforms.CenterCrop(crop_size),
+        # #             transforms.ToTensor(),
+        # #             transforms.Normalize(*data_stats[data_name])
+        # #         ]
+
+        # #     )
+        # dataset['train'].target_size = target_size_ 
+
     elif data_name in ['CIFAR10', 'CIFAR100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
@@ -159,6 +207,157 @@ def fetch_dataset(data_name, domain=None):
     print('data ready')
     return dataset
 
+def fetch_dataset_full_test(data_name, domain=None):
+    import datasets
+    dataset = {}
+    # transform_sup = FixTransform(cfg['data_name'])
+    print('fetching data {}...'.format(data_name))
+    root = './data/{}'.format(data_name)
+    if data_name in ['MNIST', 'FashionMNIST']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
+                                'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                                'transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+                               'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                               'transforms.ToTensor()]))'.format(data_name))
+        # dataset['train'].transform = datasets.Compose([
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(*data_stats[data_name])])
+        dataset['train'].transform = datasets.Compose([
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ToTensor()])
+        dataset['test'].transform = datasets.Compose([
+            transforms.Grayscale(num_output_channels=3),
+            transforms.Resize(32),
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[data_name])])
+    elif data_name in ['office31', 'OfficeHome']:
+        # print(domain)
+        dataset['train'] = eval('datasets.{}_Full(root=root, domain=domain, split=\'train\', '
+                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        # dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+        #                        'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+
+        # dataset['train'] = datasets.office31(root=root, domain=domain, split='train',
+        #                                      transform=datasets.Compose([transforms.ToTensor()]))
+
+        
+        if cfg['test_10_crop']:
+            crop_list = image_test_10crop()
+            for i in range(10):
+                dataset['test'] = eval('[datasets.{}_Full(root=root, domain=domain, split=\'test\', '
+                               'transform=crop_list[i]) for i in range(10)]'.format(data_name))
+        else:
+            print('test_10crop disabled')
+            resize_size = 256
+            crop_size = 224
+            dataset['test'] = eval('datasets.{}_Full(root=root, domain=domain, split=\'test\', '
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+            # dataset['test'] = ConcatDataset([dataset['train'],dataset['test']])
+            dataset['test'].transform = datasets.Compose(
+                [
+                    # transforms.CenterCrop(224),
+                    # transforms.ToTensor(),
+                    # transforms.Normalize(*data_stats[data_name])
+                    # # transforms.RandomResizedCrop(224)
+                    # ResizeImage(resize_size),
+                    transforms.Resize((resize_size, resize_size)),
+                    # transforms.RandomResizedCrop(crop_size),
+                    # transforms.RandomHorizontalFlip(),
+                    transforms.CenterCrop(crop_size),
+                    transforms.ToTensor(),
+                    transforms.Normalize(*data_stats[data_name])
+                ]
+
+            )
+        # dataset['train'].transform = datasets.Compose(
+        #         [
+        #             # transforms.CenterCrop(224),
+        #             # transforms.ToTensor(),
+        #             # transforms.Normalize(*data_stats[data_name])
+        #             # # transforms.RandomResizedCrop(224)
+        #             # ResizeImage(resize_size),
+        #             transforms.Resize((resize_size, resize_size)),
+        #             # transforms.RandomResizedCrop(crop_size),
+        #             # transforms.RandomHorizontalFlip(),
+        #             transforms.CenterCrop(crop_size),
+        #             transforms.ToTensor(),
+        #             transforms.Normalize(*data_stats[data_name])
+        #         ]
+
+        #     )
+        # # dataset['train'].transform = datasets.Compose([transforms.ToTensor()])
+        # # dataset['train'].transform = transform_sup
+        # target_size_ = dataset['train'].target_size
+        # dataset['test'] = ConcatDataset([dataset['train'],dataset['test']])
+        # dataset['test'].target_size = target_size_
+
+    elif data_name in ['CIFAR10', 'CIFAR100']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
+                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        # dataset['train'].transform = datasets.Compose([
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(*data_stats[data_name])])
+        dataset['test'].transform = datasets.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[data_name])])
+    elif data_name in ['SVHN', 'MNIST_M', 'SYN32']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
+                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        dataset['train'].transform = datasets.Compose([
+            # transforms.Grayscale(),
+            transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+            transforms.ToTensor(),
+            # transforms.Normalize((0.5),(0.5))])
+            transforms.Normalize(*data_stats[data_name])])
+        dataset['test'].transform = datasets.Compose([
+            # transforms.Grayscale(num_output_channels=1),
+            transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[data_name])])
+        # transforms.Normalize((0.5), (0.5))])
+    elif data_name in ['STL10']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
+                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        dataset['train'].transform = datasets.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(96, padding=12, padding_mode='reflect'),
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[data_name])])
+        dataset['test'].transform = datasets.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[data_name])])
+    elif data_name in ['USPS']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
+                                'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                                'transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+                               'transform=datasets.Compose([transforms.Grayscale(num_output_channels=3),'
+                               'transforms.ToTensor()]))'.format(data_name))
+        # dataset['train'].transform = datasets.Compose([
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(*data_stats[data_name])])
+        dataset['train'].transform = datasets.Compose([
+            transforms.Grayscale(num_output_channels=3),
+            transforms.Resize(32),
+            transforms.ToTensor()])
+        dataset['test'].transform = datasets.Compose([
+            transforms.Grayscale(num_output_channels=3),
+            transforms.Resize(32),
+            transforms.ToTensor(),
+            transforms.Normalize(*data_stats[data_name])])
+    else:
+        raise ValueError('Not valid dataset name')
+    print('data ready')
+    return dataset
 
 def input_collate(batch):
     if isinstance(batch[0], dict):
@@ -648,7 +847,8 @@ class FixTransform(object):
                     # transforms.ToTensor(),
                     # transforms.Normalize(*data_stats[data_name])
                     # # transforms.RandomResizedCrop(224)
-                    ResizeImage(resize_size),
+                    # ResizeImage(resize_size),
+                    transforms.Resize((resize_size, resize_size)),
                     # transforms.CenterCrop(crop_size),
                     transforms.RandomResizedCrop(crop_size),
                     transforms.RandomHorizontalFlip(),
@@ -663,7 +863,8 @@ class FixTransform(object):
                 # transforms.Normalize(*data_stats[data_name]),
                 # # ResizeImage(256),
                 # # transforms.RandomResizedCrop(224),
-                ResizeImage(resize_size),
+                # ResizeImage(resize_size),
+                transforms.Resize((resize_size, resize_size)),
                 transforms.RandomResizedCrop(crop_size),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
@@ -671,7 +872,8 @@ class FixTransform(object):
 
             ])
             self.strong = transforms.Compose([
-                ResizeImage(resize_size),
+                # ResizeImage(resize_size),
+                transforms.Resize((resize_size, resize_size)),
                 # transforms.CenterCrop(224),
                 transforms.RandomResizedCrop(crop_size),
                 transforms.RandomHorizontalFlip(),
@@ -684,11 +886,14 @@ class FixTransform(object):
 
     def __call__(self, input):
         # print(input['data'])
+        # exit()
         data = self.normal(input['data'])
         augw = self.weak(input['data'])
         augs = self.strong(input['data'])
         input = {**input, 'data': data, 'augw': augw, 'augs': augs}
         # input = {**input, 'data': data, 'augw': augw}
+        # print(data.shape,augw.shape)
+        # exit()
         return input
 
 

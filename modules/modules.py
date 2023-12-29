@@ -20,6 +20,21 @@ from data import make_dataset_normal
 import gc
 class Server:
     def __init__(self, model):
+        # if cfg['pretrained_source']:
+        #         print('loading pretrained resnet50 model ')
+        #         path_source = '/home/sampathkoti/Downloads/A-20231219T043936Z-001/A/'
+
+        #         F = torch.load(path_source + 'source_F.pt')
+        #         B = torch.load(path_source + 'source_B.pt')
+        #         C = torch.load(path_source + 'source_C.pt')
+        #         # print(F.keys())
+        #         # exit()
+        #         # model.backbone_layer.load_state_dict(torch.load(path_source + 'source_F.pt'))
+        #         # model.feat_embed_layer.load_state_dict(torch.load(path_source + 'source_B.pt'))
+        #         # model.class_layer.load_state_dict(torch.load(path_source + 'source_C.pt'))
+        #         model.backbone_layer.load_state_dict(F)
+        #         model.feat_embed_layer.load_state_dict(B)
+        #         model.class_layer.load_state_dict(C)
         self.model_state_dict = save_model_state_dict(model.state_dict())
         self.avg_cent = None
         self.avg_cent_ = None
