@@ -86,9 +86,8 @@ def runExperiment():
             cfg['data_name_unsup'] = domain
             client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'])
         elif domain in ['dslr','webcam','amazon']:
-            cfg['data_name_sup'] = 'office31'
-            # client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
-            client_dataset_unsup[i] = fetch_dataset_full_test(cfg['data_name_unsup'],domain=domain)
+            cfg['data_name_unsup'] = 'office31'
+            client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
         elif domain in ['art','clipart','product','realworld']:
             cfg['data_name_unsup'] = 'OfficeHome'
             cfg['data_name_sup'] = 'OfficeHome'
@@ -383,7 +382,7 @@ def runExperiment():
             # logger.reset()
             # server.update(client)
         #     train_server(server_dataset['train'], server, optimizer, metric, logger, epoch)
-        if epoch == 1 and cfg['cluster'] ==1:
+        if (epoch == 1 or epoch%7==0)and cfg['cluster'] ==1:
             server.cluster(client,epoch)
             server.deac_client(client)
             result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
@@ -987,7 +986,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
     logger.safe(True)
     # print(scheduler)
     # exit()
-    if epoch == 1  and  cfg['cluster'] ==1:
+    if (epoch == 1 or epoch%7==0) and  cfg['cluster'] ==1:
         init_activity_rate = cfg['active_rate']
         cfg['active_rate'] = 1
     domains=[]
@@ -1009,7 +1008,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             elif cfg['cluster'] and epoch != 1:
                 server.distribute_cluster(client,client_dataset_unsup)
             else:
-                if epoch == 1:
+                if (epoch == 1 and epoch%7==0):
                     server.distribute(client,client_dataset_unsup,BN_stats=True)
                 else:
                     server.distribute(client,client_dataset_unsup)
@@ -1206,7 +1205,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
                 # print(len(dataset_m))
                 # print(scheduler)
                 # exit()
-                if epoch == 1 and cfg['cluster']:
+                if (epoch == 1 or epoch%7==0)and cfg['cluster']:
                     client[m].trainntune(dataset_m, lr, metric, logger, epoch,fwd_pass=True,scheduler =scheduler)
                 else:
                     client[m].trainntune(dataset_m, lr, metric, logger, epoch,scheduler =scheduler)
@@ -1233,7 +1232,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
     logger.safe(False)
     gc.collect()
     torch.cuda.empty_cache()
-    if epoch == 1  and  cfg['cluster'] ==1:
+    if (epoch == 1 or epoch%7==0) and  cfg['cluster'] ==1:
         cfg['active_rate'] = init_activity_rate
     return
 def get_clusters(client_dataset_sup, client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode,scheduler = None):

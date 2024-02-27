@@ -9,6 +9,7 @@ from scipy.spatial.distance import cdist
 from tqdm import tqdm 
 from sklearn.cluster import SpectralClustering
 from config import cfg
+import gc
 from utils import to_device, make_optimizer, collate, to_device
 # from utils import to_device, make_optimizer, collate, to_device
 def set_random_seed(seed=0):
@@ -50,8 +51,10 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
         else:
             if cfg['add_fix']==0:
                 embed_feat, cls_out = model(input)
-            elif cfg['add_fix'] ==1:
+            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 0:
                 embed_feat, cls_out,_ = model(input)
+            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 1:
+                embed_feat, cls_out,_,_ = model(input)
             # if i ==1:
             #     print(embed_feat)
         emd_feat_stack.append(embed_feat)
@@ -71,12 +74,15 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
     # topk_num = max(all_emd_feat.shape[0] // (args.class_num * args.topk_seg), 1)
     # print(all_emd_feat.shape[0])
     # print('target',cfg['target_size'],all_emd_feat.shape[0])
-    # topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] *2), 1)
+    topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] *3), 1)
+    # topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] *1), 1)
     # topk_num = max(all_emd_feat.shape[0] // (cfg['target_size'] * 20), 1)
-    topk_num = 3
-    # print('topk num',topk_num)
+    # topk_num = 3
+    print('topk num',topk_num)
     all_cls_out = torch.cat(cls_out_stack, dim=0)
     _, all_psd_label = torch.max(all_cls_out, dim=1)
+    # print(len(all_gt_label))
+    # exit()
     acc = torch.sum(all_gt_label == all_psd_label) / len(all_gt_label)
     acc_list = [acc]
     # print(all_emd_feat.shape)
@@ -85,6 +91,7 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
     # multi_cent_num = 3 if 3<topk_num else 1
     # print(topk_num)
     # multi_cent_num = 3 if 3<=topk_num else 1
+    
     multi_cent_num = 1
     # print(multi_cent_num)
     feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num, cfg['embed_feat_dim'])),cfg['device'])
@@ -136,16 +143,32 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
         
     # if args.dataset == "VisDA":
     #     print(psd_acc_str)
+    # del optimizer
+    # del optimizer_
+    # del model
     
+    # print(feat_dist.get_device() )
+    # # print(acc_list.get_device() )
+    # # print(feat_cls_sample.device)
+    # # print(emd_feat_stack.get_device())
+    # # print(cls_out_stack.get_device())
+    # # print(gt_label_stack.get_device())
+    # # print(faiss_kmeans.get_device())
+    # exit()
+    gc.collect()
+    del feat_dist
+    # print(feat_multi_cent.get_device() )
+    # exit()
+    torch.cuda.empty_cache()
     if flag or flag_NRC:
         # For G-SFDA or NRC
         return feat_multi_cent, all_psd_label, all_emd_feat, all_cls_out
     else:
         # For SHOT and SHOT++
         if confu_mat_flag:
-            return feat_multi_cent, all_psd_label, psd_confu_mat
+            return feat_multi_cent, all_psd_label, psd_confu_mat,all_cls_out
         else:
-            return feat_multi_cent, all_psd_label, emd_feat_out_
+            return feat_multi_cent.cpu(), all_psd_label.cpu(), emd_feat_out_.cpu(),all_cls_out.cpu()
 
 
 def get_final_centroids(model,test_data_loader,pred_label):
@@ -280,6 +303,7 @@ def EMA_update_multi_feat_cent_with_feat_simi(glob_multi_feat_cent, embed_feat, 
     multi_num  = glob_multi_feat_cent.shape[1]
     
     normed_embed_feat = embed_feat / torch.norm(embed_feat, p=2, dim=1, keepdim=True)
+    glob_multi_feat_cent = to_device(glob_multi_feat_cent,cfg['device'])
     feat_simi = torch.einsum("cmd, nd -> ncm", glob_multi_feat_cent, normed_embed_feat)
     feat_simi = feat_simi.flatten(1) #[N, C*M]
     feat_simi = torch.softmax(feat_simi, dim=1).reshape(batch_size, class_num, multi_num) #[N, C, M]
@@ -292,7 +316,7 @@ def EMA_update_multi_feat_cent_with_feat_simi(glob_multi_feat_cent, embed_feat, 
         glob_multi_feat_cent = curr_multi_feat_cent
 
 
-    return glob_multi_feat_cent
+    return glob_multi_feat_cent.cpu()
 
 
 class CrossEntropyLabelSmooth(nn.Module):

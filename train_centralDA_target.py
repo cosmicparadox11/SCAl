@@ -41,6 +41,7 @@ def main():
         cfg['data_name'] = 'office31'
     elif cfg['domain_s'] in ['art','clipart','product','realworld']:
         cfg['data_name'] = 'OfficeHome'
+        cfg['unsup_data_name'] = 'OfficeHome'
     elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
         cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
@@ -113,8 +114,8 @@ def runExperiment():
     if not cfg['test_10_crop']:
         client_dataset_unsup['test'].transform = transform_unsup
     # data_loader_sup = make_data_loader(client_dataset_sup, 'global')
-    # bt = cfg['bt']
-    # cfg['global']['batch_size']={'train':bt,'test':50}
+    bt = 64
+    cfg['global']['batch_size']={'train':bt,'test':128}
     print(cfg['global']['batch_size'])
     data_loader_sup = make_data_loader_DA(client_dataset_sup, 'global')
     data_loader_unsup = make_data_loader_DA(client_dataset_unsup, 'global')
@@ -143,11 +144,11 @@ def runExperiment():
     metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     # temp = cfg['data_name']
     # cfg['model_tag'] = f'0_{temp}_resnet9_0_sup_100_0.1_iid_5-5_0.07_1'
-    print(cfg['model_tag'])
-    print(cfg['model_tag_load'])
+    # print(cfg['model_tag'])
+    print('load tag ',cfg['tag_'])
     # exit()
     ##########################
-    tag_ = '2023_dslr_0.03_resnet50_10_sup-ft-fix'
+    tag_ = cfg['tag_']
     result = resume(tag_,'best')
     ##########################
     # result = resume(cfg['model_tag_load'],'checkpoint')
@@ -178,8 +179,9 @@ def runExperiment():
     # print(torch.cuda.memory_summary(device=1))
     # print(cfg)
     with torch.no_grad():
-        test_model.train(False)
-        test_model.load_state_dict(model_t.state_dict())
+        # test_model.train(False)
+        # test_model.load_state_dict(model_t.state_dict())
+        test_model.load_state_dict(result['model_state_dict'])
         # test_model.eval()
         test_DA(data_loader_sup['test'], test_model, metric, logger, epoch)
         test_DA(data_loader_unsup['test'], test_model, metric, logger, epoch)
@@ -211,47 +213,48 @@ def runExperiment():
     # scheduler = make_scheduler(optimizer, 'global')
     # print(cfg)
     if cfg['par'] == 1:
-                print('freezing')
-                cfg['local']['lr'] = cfg['var_lr']
-                # cfg['local']['lr'] = 0.001
-                param_group_ = []
-                for k, v in model_t.backbone_layer.named_parameters():
-                    # print(k)
-                    if "bn" in k:
-                        # param_group += [{'params': v, 'lr': cfg['local']['lr']*2}]
-                        param_group_ += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
-                        # v.requires_grad = False
-                        # print(k)
-                    else:
-                        v.requires_grad = False
+        print('freezing')
+        cfg['local']['lr'] = cfg['var_lr']
+        # cfg['local']['lr'] = 0.001
+        param_group_ = []
+        for k, v in model_t.backbone_layer.named_parameters():
+            # print(k)
+            if "bn" in k:
+                # param_group += [{'params': v, 'lr': cfg['local']['lr']*2}]
+                param_group_ += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
+                # v.requires_grad = False
+                # print(k)
+            else:
+                v.requires_grad = False
 
-                for k, v in model_t.feat_embed_layer.named_parameters():
-                    # print(k)
-                    param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
-                for k, v in model_t.class_layer.named_parameters():
-                    v.requires_grad = False
-                    # param_group += [{'params': v, 'lr': cfg['local']['lr']}]
+        for k, v in model_t.feat_embed_layer.named_parameters():
+            # print(k)
+            param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
+        for k, v in model_t.class_layer.named_parameters():
+            v.requires_grad = False
+            # param_group += [{'params': v, 'lr': cfg['local']['lr']}]
 
-                optimizer_ = make_optimizer(param_group_, 'local')
-                optimizer = op_copy(optimizer_)
-    
+        optimizer_ = make_optimizer(param_group_, 'local')
+        optimizer = op_copy(optimizer_)
+    cfg['iter_num'] =0 
     for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
         # cfg['model_name'] = 'local'
         logger.safe(True)
         
-        # train_da(client_dataset_unsup['train'], model_t, optimizer, metric, logger, epoch,scheduler)
+        train_da(client_dataset_unsup['train'], model_t, optimizer, metric, logger, epoch,scheduler)
         # train_da(client_dataset_unsup['train'], model_t, optimizer, metric, logger, epoch,None)
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
         # print(list(model.buffers()))
         # test_model = make_batchnorm_stats(client_dataset_unsup['train'], model_t, cfg['model_name'])
+        test_model.train(False)
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
         test_model.load_state_dict(model_t.state_dict())
-        print(test_model)
+        # print(test_model)
         test_DA(data_loader_unsup['test'], test_model, metric, logger, epoch)
-        exit()
+        # exit()
         # print(list(model.buffers()))
         # module = model.layer1[0].n1
         # print(list(module.named_buffers()))
@@ -437,6 +440,7 @@ def train_da(dataset, model, optimizer, metric, logger, epoch,scheduler):
 
     
     model.train()
+    
     # print(model)
     
     # for k, v in model.class_layer.named_parameters():
@@ -447,7 +451,14 @@ def train_da(dataset, model, optimizer, metric, logger, epoch,scheduler):
     # print(model)
     for i, input in enumerate(train_data_loader):
         # print(i)
-        iter_idx += 1
+        # iter_idx += 1
+        cfg['iter_num']+=1
+        max_iter = cfg['cycles']*len(train_data_loader)
+        # print('max_iter',max_iter)
+        # exit()
+        # lr_scheduler(optimizer, iter_num=cfg['iter_num'], max_iter=max_iter)
+        
+        
         input = collate(input)
         input_size = input['data'].size(0)
         input['loss_mode'] = cfg['loss_mode']
@@ -493,13 +504,14 @@ def train_da(dataset, model, optimizer, metric, logger, epoch,scheduler):
         #==================================================================#
         # loss = 0.5*ent_loss + 1* psd_loss + 0.1* dym_psd_loss - 1*reg_loss
         # loss = 1*ent_loss + 0.3* psd_loss + 0.1* dym_psd_loss - 1*reg_loss
-        loss = ent_loss + 1* psd_loss + 0.1 * dym_psd_loss - reg_loss
+        loss = ent_loss + 0.3* psd_loss + 0.1  * dym_psd_loss - reg_loss
         #==================================================================#
         # lr_scheduler(optimizer, iter_idx, iter_max)
         scheduler.step()
         optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        # print('lr',optimizer.param_groups[0]['lr'])
         optimizer.step()
         with torch.no_grad():
             loss_stack.append(loss.cpu().item())

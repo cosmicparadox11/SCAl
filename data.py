@@ -57,6 +57,8 @@ def fetch_dataset(data_name, domain=None):
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['office31', 'OfficeHome']:
         # print(domain)
+        print('data name',data_name)
+        print('domain',domain)
         # dataset['train'] = eval('datasets.{}(root=root, domain=domain, split=\'train\', '
         #                         'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['train'] = eval('datasets.{}(root=root, domain=domain, split=\'train\', '
@@ -83,7 +85,7 @@ def fetch_dataset(data_name, domain=None):
             crop_size = 224
             dataset['test'] = eval('datasets.{}(root=root, domain=domain, split=\'test\', '
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-            print('original test len',len(dataset['test']))
+            print('original test len with 20 percent test:',len(dataset['test']))
             
             dataset['test'].transform = datasets.Compose(
                 [
@@ -254,6 +256,7 @@ def fetch_dataset_full_test(data_name, domain=None):
             dataset['test'] = eval('datasets.{}_Full(root=root, domain=domain, split=\'test\', '
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
             # dataset['test'] = ConcatDataset([dataset['train'],dataset['test']])
+            print('test len with 100 percent test:',len(dataset['test']))
             dataset['test'].transform = datasets.Compose(
                 [
                     # transforms.CenterCrop(224),
@@ -626,24 +629,40 @@ def split_class_dataset_DA(dataset, data_split_mode='iid', split_num=0):
 
 
 def seperate_sup_unsup_DA(client_dataset, split_num):
-    print('data len')
-    print(len(client_dataset))
+    # print('data len')
+    print('data length',len(client_dataset))
+    print('split number',split_num)
     target = torch.tensor(client_dataset.target)
+    print('len of target',len(target))
     num_supervised_per_class = len(client_dataset) // (cfg['target_size'] * split_num)  # samples pre class per client
+    # print(cfg['target_size'],num_supervised_per_class)
     data_split = {}
     for i in range(int(split_num)):
         data_split[i] = []
+    sum_ = 0
     for j in range(cfg['target_size']):
         idx = torch.where(target == j)[0]
+        # print(len(idx))
+        # sum_+=len(idx)
+        idx =  idx[torch.randperm(len(idx))[:]].tolist()
+        # print(len(idx))
+        part_len = len(idx)//split_num
+        for i in range(split_num):
+            data_split[i].extend(idx[i*part_len: (i + 1) * part_len])
 
-        for i in range(int(split_num)):
-            num_items_i = min(len(idx), num_supervised_per_class)
-            idx_i = idx[torch.randperm(len(idx))[:num_items_i]].tolist()
-            # idx_i = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
-            data_split[i].extend(idx_i)
-            idx = list(set(idx.tolist()) - set(idx_i))
-            idx = torch.Tensor(idx)
-
+    #     for i in range(int(split_num)):
+    #         num_items_i = min(len(idx), num_supervised_per_class)
+    #         # print(num_items_i)
+    #         idx_i = idx[torch.randperm(len(idx))[:num_items_i]].tolist()
+    #         # idx_i = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
+    #         data_split[i].extend(idx_i)
+    #         idx = list(set(idx.tolist()) - set(idx_i))
+    #         idx = torch.Tensor(idx)
+    #     # for i in range(int(len(idx)//split_num)):
+    #     #     num_items_i
+    #     # print(len(idx))
+    #     # sum_+=len(idx)
+    # # print('sum target',sum_)
     return data_split
 
 
@@ -888,12 +907,12 @@ class FixTransform(object):
         # print(input['data'])
         # exit()
         data = self.normal(input['data'])
-        # augw = self.weak(input['data'])
-        # augs = self.strong(input['data'])
-        # input = {**input, 'data': data, 'augw': augw, 'augs': augs}
-        input = {**input, 'data': data, 'augw': data, 'augs': data}
+        augw = self.weak(input['data'])
+        augs = self.strong(input['data'])
+        input = {**input, 'data': data, 'augw': augw, 'augs': augs}
+        # input = {**input, 'data': data, 'augw': data, 'augs': data}
         # input = {**input, 'data': data, 'augw': augw}
-        # print(data.shape,augw.shape)
+        # print(data.shape,augw.shape,augs.shape)
         # exit()
         return input
 

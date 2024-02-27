@@ -42,6 +42,8 @@ def save(input, path, mode='torch'):
 def load(path, mode='torch'):
     if mode == 'torch':
         return torch.load(path, map_location=lambda storage, loc: storage)
+        # return torch.load(path, map_location= torch.device(cfg['device']))
+    
     elif mode == 'np':
         return np.load(path, allow_pickle=True)
     elif mode == 'pickle':
@@ -162,13 +164,13 @@ def process_control():
         cfg['server'] = {}
         cfg['server']['shuffle'] = {'train': True, 'test': False}
         if cfg['num_supervised'] > 1000:
-            cfg['server']['batch_size'] = {'train': 10, 'test': 10}
+            cfg['server']['batch_size'] = {'train': 64, 'test': 128}
         else:
-            cfg['server']['batch_size'] = {'train': 10, 'test': 10}
+            cfg['server']['batch_size'] = {'train': 64, 'test': 128}
         cfg['server']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][1])))
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
-        cfg['client']['batch_size'] = {'train': 10, 'test': 3*64}
+        cfg['client']['batch_size'] = {'train': 64, 'test': 32}
         cfg['client']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][0])))
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
@@ -177,7 +179,7 @@ def process_control():
         cfg['local']['weight_decay'] = 5e-4
         cfg['local']['nesterov'] = True
         cfg['global'] = {}
-        cfg['global']['batch_size'] = {'train': 10, 'test': 3*64}
+        cfg['global']['batch_size'] = {'train': 64, 'test': 32}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
         cfg['global']['num_epochs'] = 150
         cfg['global']['optimizer_name'] = 'SGD'
@@ -200,9 +202,9 @@ def process_control():
         cfg[model_name]['scheduler_name'] = 'CosineAnnealingLR'
         cfg[model_name]['num_epochs'] = 400
         if cfg['num_supervised'] > 1000 or cfg['num_supervised'] == -1:
-            cfg[model_name]['batch_size'] = {'train': 10, 'test':3*64}
+            cfg[model_name]['batch_size'] = {'train': 64, 'test':1*64}
         else:
-            cfg[model_name]['batch_size'] = {'train': 10, 'test': 3*64}
+            cfg[model_name]['batch_size'] = {'train': 64, 'test': 64}
     return
 
 
@@ -249,6 +251,8 @@ class Stats(object):
 def make_optimizer(parameters, tag):
     # print(cfg[tag]['lr'])
     if cfg[tag]['optimizer_name'] == 'SGD':
+        # print(cfg[tag]['momentum'])
+        # exit()
         optimizer = optim.SGD(parameters, lr=cfg[tag]['lr'], momentum=cfg[tag]['momentum'],
                               weight_decay=cfg[tag]['weight_decay'], nesterov=cfg[tag]['nesterov'])
     elif cfg[tag]['optimizer_name'] == 'Adam':
@@ -278,7 +282,7 @@ def make_scheduler(optimizer, tag):
         # print('trueeeeeeee')
         print(cfg[tag]['num_epochs'])
         # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg[tag]['num_epochs'], eta_min=0)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=0)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=500, eta_min=0)
     elif cfg[tag]['scheduler_name'] == 'ReduceLROnPlateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg[tag]['factor'],
                                                          patience=cfg[tag]['patience'], verbose=False,
@@ -306,6 +310,8 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 # def resume(model_tag, load_tag='best', verbose=True):
     if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
         result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+        # result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag),mode='pickle')
+        
     else:
         print('Not exists model tag: {}, start from scratch'.format(model_tag))
         from datetime import datetime
@@ -317,7 +323,19 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
     if verbose:
         print('Resume from {}'.format(result['epoch']))
     return result
-def resume_DA(model_tag, load_tag='checkpoint',mode = 'source', verbose=True):
+
+def load_Cent(num, verbose=True):
+    if os.path.exists('./output/cent_info_{}.pt'.format(num)):
+        result = load('./output/cent_info_{}.pt'.format(num))
+        
+        
+    else:
+        print('Not exists')
+       
+    if verbose:
+        print('Resume from {}'.format(num))
+    return result
+def resume_DA(model_tag, load_tag='checkpoint',mode = 'target', verbose=True):
     
 # def resume(model_tag, load_tag='best', verbose=True):
     if os.path.exists('./output/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag)):

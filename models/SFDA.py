@@ -453,8 +453,16 @@ class SFDA(nn.Module):
                 # return f,x
                 if cfg['add_fix']==0:
                     return f,torch.softmax(x,dim=1)
-                elif cfg['add_fix']==1:
+                elif cfg['add_fix']==1 and cfg['logit_div'] ==0:
                     return f,torch.softmax(x,dim=1),x_s
+                elif cfg['add_fix']==1 and cfg['logit_div'] ==1:
+                    return f,torch.softmax(x,dim=1),x,x_s
+                    # if cfg['logit_div'] == 1:
+                    #     print('SFDA softmax2')
+                    #     x=torch.softmax(x/2,dim=1)
+                    #     return f,x,x_s
+                    # else:
+                        
 
                 
             elif input['loss_mode'] == 'fix-mix' and 'kl_loss' not in input:

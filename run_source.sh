@@ -1,0 +1,2 @@
+python train_centralDA_source.py --domain_s 'clipart' --domain_u 'art' --model_name resnet50 --d_mode new --device cuda:1 --var_lr 0.03  --scheduler_name  'ExponentialLR' --cycles 200   --control_name "2_sup-ft-fix_15_0.3_iid_5-5_0.07_1" --resume_mode 1  --init_seed 2020  
+python train_centralDA_source.py --domain_s 'product' --domain_u 'art' --model_name resnet50 --d_mode new --device cuda:1 --var_lr 0.03  --scheduler_name  'ExponentialLR' --cycles 200   --control_name "2_sup-ft-fix_15_0.3_iid_5-5_0.07_1" --resume_mode 1  --init_seed 2020  

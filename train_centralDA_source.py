@@ -50,6 +50,7 @@ def main():
             model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'],exp_num,exp_name]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
+        # exit()
         runExperiment()
     return
 

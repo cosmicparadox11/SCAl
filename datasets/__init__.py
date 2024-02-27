@@ -3,7 +3,7 @@ from .cifar import CIFAR10, CIFAR100
 from .svhn import SVHN
 from .stl import STL10
 from .usps import USPS
-from .office31 import office31
+from .office31 import office31,office31_Full
 from .office_home import OfficeHome,OfficeHome_Full
 from .utils import *
 from .randaugment import RandAugment
