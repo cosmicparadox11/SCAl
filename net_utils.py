@@ -184,7 +184,13 @@ def get_final_centroids(model,test_data_loader,pred_label):
         
             psd_label = pred_label[input['id']]
             psd_label_ = pred_label[input['id']]
-            embed_feat, pred_cls = model(input)
+            # embed_feat, pred_cls = model(input)
+            if cfg['add_fix']==0:
+                embed_feat, pred_cls = model(input)
+            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 0:
+                embed_feat, pred_cls,_ = model(input)
+            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 1:
+                embed_feat, pred_cls,_,_ = model(input)
             #print("psd_label:",psd_label )
             if pred_cls.shape != psd_label.shape:
                 psd_label = to_device(psd_label,cfg['device'])
@@ -210,14 +216,15 @@ def init_psd_label_shot_icml(model, dataloader):
     args_epsilon = 1e-5
     args_threshold = 0.3
     start_test = True
-    args_class_num = 31
+    args_class_num = cfg['target_size']
     model.eval()
     
     with torch.no_grad():
         iter_test = iter(dataloader)
         #for _ in tqdm(range(len(dataloader)), ncols=60):
         for _ in range(len(dataloader)):    
-            data = iter_test.next()
+            # data = iter_test.next()
+            data = next(iter_test)
             #print("data:",data.keys())
             #inputs = data['augw']
             labels = data['target']
@@ -227,7 +234,13 @@ def init_psd_label_shot_icml(model, dataloader):
             input['loss_mode'] = cfg['loss_mode']
             input = to_device(input, cfg['device'])
             
-            feas, outputs = model(input)
+            # feas, outputs,_ = model(input)
+            if cfg['add_fix']==0:
+                feas, outputs = model(input)
+            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 0:
+                feas, outputs,_ = model(input)
+            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 1:
+                feas, outputs,_,_ = model(input)
             if start_test:
                 all_fea = feas.float().cpu()
                 all_output = outputs.float().cpu()

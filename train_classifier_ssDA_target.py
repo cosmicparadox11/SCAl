@@ -1007,7 +1007,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             if cfg['multi_model']:
                 server.distribute_multi(client,epoch,client_dataset_unsup)
             elif cfg['cluster'] and epoch != 1:
-                server.distribute_cluster(client,client_dataset_unsup)
+                server.distribute_cluster(client,epoch,client_dataset_unsup)
             else:
                 if epoch == 1:
                     server.distribute(client,client_dataset_unsup,BN_stats=True)
@@ -1023,7 +1023,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             if cfg['multi_model']:
                 server.distribute_multi(client,epoch,client_dataset_unsup)
             elif cfg['cluster'] and epoch != 1:
-                server.distribute_cluster(client,client_dataset_unsup)
+                server.distribute_cluster(client,epoch,client_dataset_unsup)
             else:
                 # server.distribute(client,client_dataset_unsup)
                 if epoch == 1:
@@ -1070,7 +1070,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             if cfg['multi_model']:
                 server.distribute_multi(client,epoch,client_dataset_unsup)
             elif cfg['cluster'] and epoch != 1:
-                server.distribute_cluster(client,client_dataset_unsup)
+                server.distribute_cluster(client,epoch,client_dataset_unsup)
             else:
                 # server.distribute(client,client_dataset_unsup)
                 if epoch == 1:
@@ -1100,7 +1100,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             if cfg['multi_model']:
                 server.distribute_multi(client,epoch,client_dataset_unsup)
             elif cfg['cluster'] and epoch != 1:
-                server.distribute_cluster(client,client_dataset_unsup)
+                server.distribute_cluster(client,epoch,client_dataset_unsup)
             else:
                 # server.distribute(client,client_dataset_unsup)
                 if epoch == 1:
@@ -1155,7 +1155,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
                 # exit()
                 server.distribute_multi(client,epoch,client_dataset_unsup)
             elif cfg['cluster'] and epoch != 1:
-                server.distribute_cluster(client,client_dataset_unsup)
+                server.distribute_cluster(client,epoch,client_dataset_unsup)
             else:
                 # server.distribute(client,client_dataset_unsup)
                 if epoch == 1:

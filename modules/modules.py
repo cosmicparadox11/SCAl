@@ -220,7 +220,7 @@ class Server:
         torch.cuda.empty_cache()
         
             
-    def distribute_cluster(self, client, batchnorm_dataset=None):
+    def distribute_cluster(self, client,epoch,BN_stats=False, batchnorm_dataset=None):
         # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
         if cfg['world_size']==1:
             model = eval('models.{}()'.format(cfg['model_name']))
@@ -231,7 +231,10 @@ class Server:
             model = torch.nn.DataParallel(model,device_ids = [0, 1])
             model.to(cfg["device"])
         
-        
+        if epoch == 2:
+            BN_stats = True
+        else:
+            BN_stats = False
         # model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         for m in range(len(client)):
             if client[m].active:
@@ -244,6 +247,14 @@ class Server:
                 model.load_state_dict(self.model_state_dict_cluster[cluster_id])
                 model_state_dict = save_model_state_dict(model.state_dict())
                 client[m].model_state_dict = copy.deepcopy(model_state_dict)
+                # if BN_stats == False:
+                #     print('distributing without bn stats')
+                #     for key in model_state_dict.keys():
+                #         if 'bn' not in key or  'running' not in key:
+                #             client[m].model_state_dict[key].data.copy_(model_state_dict[key])
+                # elif BN_stats == True:
+                #     print('distributing with bn stats')
+                #     client[m].model_state_dict = copy.deepcopy(model_state_dict)
                 if cfg['avg_cent']:
                     if self.avg_cent is not None:
                         client[m].avg_cent = self.avg_cent
@@ -256,7 +267,7 @@ class Server:
         gc.collect()
         torch.cuda.empty_cache()
         return       
-    def distribute_multi(self, client,epoch, batchnorm_dataset=None):
+    def distribute_multi(self, client,epoch,BN_stats=False, batchnorm_dataset=None):
         # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
         if cfg['world_size']==1:
             model = eval('models.{}()'.format(cfg['model_name']))
@@ -270,6 +281,7 @@ class Server:
         
         # model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         if epoch ==1:
+            BN_stats = True
             for m in range(len(client)):
                 # if client[m].active:
                 print('distributing to all clients at epch 1')
@@ -279,6 +291,14 @@ class Server:
                 model.load_state_dict(self.model_state_dict[domain_id])
                 model_state_dict = save_model_state_dict(model.state_dict())
                 client[m].model_state_dict = copy.deepcopy(model_state_dict)
+                # if BN_stats == False:
+                #     print('distributing without bn stats')
+                #     for key in model_state_dict.keys():
+                #         if 'bn' not in key or  'running' not in key:
+                #             client[m].model_state_dict[key].data.copy_(model_state_dict[key])
+                # elif BN_stats == True:
+                #     print('distributing with bn stats')
+                #     client[m].model_state_dict = copy.deepcopy(model_state_dict)
                 if cfg['avg_cent']:
                     if self.avg_cent is not None:
                         client[m].avg_cent = self.avg_cent
@@ -286,6 +306,7 @@ class Server:
                         client[m].avg_cent = None
                         print('Warning:server.avg_cent is None')
         else:
+            BN_stats = False
             for m in range(len(client)):
                 if client[m].active:
                     domain_id = client[m].domain_id
@@ -293,7 +314,15 @@ class Server:
                     # exit()
                     model.load_state_dict(self.model_state_dict[domain_id])
                     model_state_dict = save_model_state_dict(model.state_dict())
-                    client[m].model_state_dict = copy.deepcopy(model_state_dict)
+                    # client[m].model_state_dict = copy.deepcopy(model_state_dict)
+                    if BN_stats == False:
+                        print('distributing without bn stats')
+                        for key in model_state_dict.keys():
+                            if 'bn' not in key or  'running' not in key:
+                                client[m].model_state_dict[key].data.copy_(model_state_dict[key])
+                    elif BN_stats == True:
+                        print('distributing with bn stats')
+                        client[m].model_state_dict = copy.deepcopy(model_state_dict)
                     if cfg['avg_cent']:
                         if self.avg_cent is not None:
                             client[m].avg_cent = self.avg_cent
@@ -2038,14 +2067,14 @@ class Client:
             # num_batches =None
             # for epoch in range(1, cfg['client']['num_epochs']+1 ):
             print(self.client_id,self.domain)
-            if self.domain == 'webcam':
-                num_local_epochs = cfg['tde']
-            else:
-                num_local_epochs = cfg['client']['num_epochs']
+            # if self.domain == 'webcam':
+            #     num_local_epochs = cfg['tde']
+            # else:
+            #     num_local_epochs = cfg['client']['num_epochs']
             if fwd_pass == True and cfg['cluster']:
-                 num_local_epochs = 10                               #re 10
+                 num_local_epochs = 10                     #re 10
             #print(num_local_epochs)
-            
+            num_local_epochs = cfg['client']['num_epochs']
             # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_data_loader), eta_min=0)
             # print(len(train_data_loader))
             # exit()
@@ -2056,15 +2085,16 @@ class Client:
                 # print(self.cent,self.avg_cent)
                 # loss,cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
                 if cfg['run_shot']:
-                    loss,cent = shot_train(model,init_model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
+                    loss,cent = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,fwd_pass,scheduler)
                 else:
                     # loss,cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
                     loss,cent,var_cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,fwd_pass,scheduler)
-                self.cent = cent.cpu()
-                self.var_cent = var_cent.cpu()
+                    self.var_cent = var_cent.cpu()
+                    self.cent = cent.cpu()
+                # self.var_cent = var_cent.cpu()
                 # print(self.cent)
                 del cent
-                del var_cent
+                # del var_cent
                 output['loss'] = loss
                     
         elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and CI_dataset is  None:
@@ -2181,10 +2211,11 @@ class Client:
         return
 
 
-def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent):
+def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent,fwd_pass=False,scheduler = None):
     loss_stack = []
-    num_classes = 31
+    num_classes = cfg['target_size']
     avg_label_feat = torch.zeros(num_classes,256)
+    model.to(cfg["device"])
     with torch.no_grad():
         model.eval()
         pred_label = init_psd_label_shot_icml(model,test_data_loader)
@@ -2193,7 +2224,8 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
     
     model.train()
     epoch_idx=epoch
-    for i, input in enumerate(test_data_loader):
+    # for i, input in enumerate(test_data_loader):
+    for i, input in enumerate(train_data_loader):
         input = collate(input)
         input_size = input['data'].size(0)
         if input_size<=1:
@@ -2201,13 +2233,17 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
         input['loss_mode'] = cfg['loss_mode']
         input = to_device(input, cfg['device'])
         optimizer.zero_grad()
+        pred_label = to_device(pred_label,cfg['device'])
         psd_label = pred_label[input['id']]
         psd_label_ = pred_label[input['id']]
 
         if cfg['add_fix']==0:
             embed_feat, pred_cls = model(input)
-        elif cfg['add_fix']==1:
+        elif cfg['add_fix']==1 and cfg['logit_div'] ==0:
             embed_feat, pred_cls,x_s = model(input)
+        elif cfg['add_fix']==1 and cfg['logit_div'] ==1:
+            embed_feat, pred_cls,x,x_s = model(input)
+            x_in = torch.softmax(x/cfg['temp'],dim =1)
         
         #act_loss = sum([item['mean_norm'] for item in list(model.act_stats.values())])
         #print("psd_label:",psd_label )
@@ -2231,7 +2267,12 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
         unique_labels = torch.unique(psd_label_).cpu().numpy() 
         class_cent = torch.zeros(num_classes,embed_feat.shape[0])
         #batch_centers = torch.zeros(len(unique_labels).embed_feat.shape[1])
-            
+        max_p, hard_pseudo_label = torch.max(pred_cls, dim=-1)
+        mask = max_p.ge(cfg['threshold'])
+        embed_feat_masked = embed_feat[mask]
+        pred_cls = pred_cls[mask]
+        psd_label = psd_label[mask]
+        # dym_psd_label  = dym_psd_label[mask]
 
         #print("loss_reg_dyn:",loss)
         #==================================================================#
@@ -2270,17 +2311,28 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
             loss += cfg['gamma']*nce_loss
             #print("reg_loss:",reg_loss,"ent_loss:",ent_loss,"psd_loss:",psd_loss,"nce_loss:",nce_loss)
         if cfg['add_fix'] ==1:
-            target_prob,target_= torch.max(dym_label, dim=-1)
-            label_s = torch.softmax(x_s,dim=1)
-            fix_loss = loss_fn(x_s,target_.detach())
-            # print(loss)
-            loss+=fix_loss
+            # target_prob,target_= torch.max(dym_label, dim=-1)
+            # target_ = dym_label
+            target_ = hard_pseudo_label
+            # print(target_.shape,x_s.shape)
+            lable_s = torch.softmax(x_s,dim=1)
+            target_ = target_[mask]
+            lable_s = lable_s[mask]
+            # print(target_.shape,lable_s.shape)
+            if target_.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                # continue
+                fix_loss = loss_fn(lable_s,target_.detach())
+                # print(loss)
+                loss+=cfg['lambda']*fix_loss
      
         optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
-    
+        if scheduler is not None:
+            # print('scheduler step')
+            scheduler.step()
+            # print('lr at client
     with torch.no_grad():
         loss_stack.append(loss.cpu().item())
         cent = get_final_centroids(model,test_data_loader,pred_label)

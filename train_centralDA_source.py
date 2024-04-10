@@ -43,6 +43,10 @@ def main():
         cfg['data_name'] = cfg['data_name_unsup'] = 'OfficeHome'
     elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
         cfg['data_name'] = cfg['domain_s']
+    if cfg['data_name']=='VisDA':
+        print('updating')
+        cfg['data_name_unsup'] == 'VisDA'
+        cfg['domain_u'] = 'target'
     for i in range(cfg['num_experiments']):
         if cfg['data_name'] in ['office31', 'OfficeHome']:
             model_tag_list = [str(seeds[i]), cfg['domain_s'],str(cfg['var_lr']), cfg['model_name'],exp_num,exp_name]
@@ -72,11 +76,16 @@ def runExperiment():
     torch.cuda.empty_cache()
     # dataset = fetch_dataset(cfg['data_name'])
     ####
+    # if cfg['data_name']=='VisDA':
+    #     print('updating')
+    #     cfg['data_name_unsup'] == 'VisDA'
+    #     cfg['domain_u'] = 'target'
     client_dataset_sup = fetch_dataset(cfg['data_name'],domain=cfg['domain_s'])
     print(len(client_dataset_sup['train']),client_dataset_sup['train'].transform)
     print(len(client_dataset_sup['test']),client_dataset_sup['test'].transform)
     # exit()
     # print(cfg['data_name_unsup'])
+    # exit()
     client_dataset_unsup = fetch_dataset_full_test(cfg['data_name_unsup'],domain=cfg['domain_u'])
     # print(len(client_dataset_unsup['test']),client_dataset_unsup['test'].transform)
     print(client_dataset_unsup)

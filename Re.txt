@@ -1,0 +1,864 @@
+['product', 'art', 'clipart']
+Experiment: 2020_realworld_to_product_art_clipart_resnet50_10999
+cfg: {'control': {'num_supervised': '10999', 'loss_mode': 'sup-ft-fix', 'num_clients': '15', 'active_rate': '1', 'data_split_mode': 'iid', 'local_epoch': '40-40', 'gm': '0.07', 'sbn': '1'}, 'data_name': 'OfficeHome', 'data_name_unsup': 'OfficeHome', 'model_name': 'resnet50', 'num_supervised_clients': 5, 'num_workers': 4, 'init_seed': 2020, 'num_experiments': 1, 'log_interval': 0.25, 'device': 'cuda:1', 'world_size': 1, 'resume_mode': 1, 'resume_mode_target': 0, 'threshold': 0.8, 'verbose': False, 'switch_epoch': 0, 'cycles': 1, 'd_mode': 'new', 'switch_epoch_pred': 0, 'kl_loss': 0, 'elr_lam': 1.0, 'var_lr': 0.03, 'scheduler_name': 'CosineAnnealingLR', 'DA': 1, 'domain_s': 'realworld', 'domain_u': 'amazon', 'unsup_list': ['product', 'art', 'clipart'], 'unsup_doms': 'product-art-clipart', 'test_10_crop': False, 'bt': 50, 'adapt_wt': 0, 'avg_cent': 0, 'avg_cent_alpha': 0.5, 'backbone_arch': 'resnet50', 'embed_feat_dim': 256, 'tde': 5, 'pre_trained': 1, 'gamma': 0.1, 'decay': 0.9, 'par': 1, 'tau': 0.5, 'kl': 0, 'kl_weight': 0.1, 'new_lr': 0, 'unsup_mode': 'bmd', 'syn_max_train': 50000, 'compute_mean_norm': True, 'compute_std_dev': False, 'compute_running_mean': True, 'compute_running_var': True, 'mean_norm_reg': 0.01, 'std_dev_reg': 0, 'running_mean': 0, 'running_var': 0, 'wt_actloss': 0.0, 'add_fix': 0, 'full_sup': 0, 'with_BN': 1, 'train_pass': 0, 'module_name': 'None', 'register_hook_BN': 0, 'post_conv': 0, 'num_sup': 0, 'run_shot': 1, 'temp': 8.0, 'wt_avg': 1, 'pretrained_source': 0, 'tag_': '2020_realworld_0.03_resnet50_1_sup-ft-fix', 'loss_mse': 0, 'multi_model': 0, 'client_test': 1, 'trk_grad': 0, 'pick': 'checkpoint', 'lambda': 1.0, 'cent_log': 1, 'save_cent': 0, 'logit_div': 0, 'cluster': 0, 'save_epoch': 0, 'control_name': '10999_sup-ft-fix_15_1_iid_40-40_0.07_1', 'num_supervised': 10999, 'data_shape': [3, 224, 224], 'conv': {'hidden_size': [32, 64]}, 'lenet': {'hidden_size': [20, 50]}, 'resnet9': {'hidden_size': [64, 128, 256, 512]}, 'resnet18': {'hidden_size': [64, 128, 256, 512]}, 'wresnet28x2': {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}, 'wresnet28x8': {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}, 'unsup_ratio': 1, 'loss_mode': 'sup-ft-fix', 'num_clients': 15, 'active_rate': 1.0, 'data_split_mode': 'iid', 'local_epoch': ['40', '40'], 'gm': 0.07, 'sbn': 1, 'server': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 128}, 'num_epochs': 40}, 'client': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 32}, 'num_epochs': 40}, 'local': {'optimizer_name': 'SGD', 'lr': 0.03, 'momentum': 0.9, 'weight_decay': 0.0005, 'nesterov': True}, 'global': {'batch_size': {'train': 64, 'test': 32}, 'shuffle': {'train': True, 'test': False}, 'num_epochs': 150, 'optimizer_name': 'SGD', 'lr': 1.0, 'momentum': 0.07, 'weight_decay': 0, 'nesterov': False, 'scheduler_name': 'ExponentialLR'}, 'alpha': 0.75, 'domain_tag': 'product_art_clipart', 'model_tag': '2020_realworld_to_product_art_clipart_resnet50_10999'}
+supervised source data name: OfficeHome
+fetching data OfficeHome...
+data name OfficeHome
+domain realworld
+test_10crop disabled
+original test len with 20 percent test: 436
+data ready
+list of un supervised domain ['product', 'art', 'clipart']
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4439
+data ready
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 2427
+data ready
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4365
+data ready
+False
+False
+False
+False
+150
+number of unsupervised domains: 3
+data len list of sup clients 0
+[5, 5, 5]
+domain id :0,j:0
+data length 4439
+split number 5
+len of target 4439
+data length 4439
+split number 5
+len of target 4439
+domain id :1,j:1
+data length 2427
+split number 5
+len of target 2427
+data length 2427
+split number 5
+len of target 2427
+domain id :2,j:2
+data length 4365
+split number 5
+len of target 4365
+data length 4365
+split number 5
+len of target 4365
+Resume from 51
+0 5
+1 5
+2 5
+1
+alt-fix_
+entered entered alt-fix mode
+bmd
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+[6, 10, 3, 9, 2, 7, 11, 1, 5, 14, 8, 12, 13, 4, 0]
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+traning the following clients [6, 10, 3, 9, 2, 7, 11, 1, 5, 14, 8, 12, 13, 4, 0]
+corresponding domains['art', 'product', 'clipart', 'product', 'product', 'product', 'art', 'clipart', 'art', 'product', 'clipart', 'clipart', 'art', 'art', 'clipart']
+traning client 6
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(6) art
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Train Epoch (C): 1(0%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 6(1/15)  Epoch Finished Time: 1:49:48.713070  Experiment Finished Time: 1:49:48.713070
+traning client 10
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(10) product
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+traning client 3
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(3) clipart
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+traning client 9
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(9) product
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+traning client 2
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(2) product
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Train Epoch (C): 1(27%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 2(5/15)  Epoch Finished Time: 1:32:59.370646  Experiment Finished Time: 1:32:59.370646
+traning client 7
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(7) product
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+traning client 11
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(11) art
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+traning client 1
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(1) clipart
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+traning client 5
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(5) art
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Train Epoch (C): 1(53%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 5(9/15)  Epoch Finished Time: 0:54:19.658315  Experiment Finished Time: 0:54:19.658315
+traning client 14
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(14) product
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+len pred_label: 860
+traning client 8
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(8) clipart
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+traning client 12
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(12) clipart
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+traning client 13
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(13) art
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Train Epoch (C): 1(80%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 13(13/15)  Epoch Finished Time: 0:18:12.317454  Experiment Finished Time: 0:18:12.317454
+traning client 4
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(4) art
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+len pred_label: 465
+traning client 0
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(0) clipart
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+len pred_label: 846
+FedAvg with BN params
+testing on client models
+num of active clients : 15
+testing client number: tensor(0)
+clinet_domain clipart
+domain:clipart,id:2,client_domain:clipart
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 3.3977  Accuracy: 47.1936
+accuracy 47.19358533725979
+accuracy 47.19358533725979
+testing client number: tensor(1)
+clinet_domain clipart
+domain:clipart,id:2,client_domain:clipart
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 3.3781  Accuracy: 48.6598
+accuracy 48.65979381443299
+accuracy 48.65979381443299
+testing client number: tensor(2)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.0032  Accuracy: 77.0894
+accuracy 77.08943456248889
+accuracy 77.08943456248889
+testing client number: tensor(3)
+clinet_domain clipart
+domain:clipart,id:2,client_domain:clipart
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 3.2656  Accuracy: 48.9805
+accuracy 48.98052691867126
+accuracy 48.98052691867126
+testing client number: tensor(4)
+clinet_domain art
+domain:art,id:1,client_domain:art
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.2037  Accuracy: 66.2546
+accuracy 66.25463534678553
+accuracy 66.25463534678553
+testing client number: tensor(5)
+clinet_domain art
+domain:art,id:1,client_domain:art
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.3721  Accuracy: 63.4528
+accuracy 63.45282241450348
+accuracy 63.45282241450348
+testing client number: tensor(6)
+clinet_domain art
+domain:art,id:1,client_domain:art
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.2480  Accuracy: 65.1009
+accuracy 65.10094767133545
+accuracy 65.10094767133545
+testing client number: tensor(7)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 1.9969  Accuracy: 77.3372
+accuracy 77.33723810122447
+accuracy 77.33723810122447
+testing client number: tensor(8)
+clinet_domain clipart
+domain:clipart,id:2,client_domain:clipart
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 3.2473  Accuracy: 49.8969
+accuracy 49.89690721518395
+accuracy 49.89690721518395
+testing client number: tensor(9)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.0660  Accuracy: 76.6839
+accuracy 76.68393781867802
+accuracy 76.68393781867802
+testing client number: tensor(10)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 1.9504  Accuracy: 78.1257
+accuracy 78.12570397191605
+accuracy 78.12570397191605
+testing client number: tensor(11)
+clinet_domain art
+domain:art,id:1,client_domain:art
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.2335  Accuracy: 66.2134
+accuracy 66.21343221809815
+accuracy 66.21343221809815
+testing client number: tensor(12)
+clinet_domain clipart
+domain:clipart,id:2,client_domain:clipart
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 3.3243  Accuracy: 48.4078
+accuracy 48.40778923253148
+accuracy 48.40778923253148
+testing client number: tensor(13)
+clinet_domain art
+domain:art,id:1,client_domain:art
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.2982  Accuracy: 64.8125
+accuracy 64.81252574920651
+accuracy 64.81252574920651
+testing client number: tensor(14)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.0482  Accuracy: 76.9317
+accuracy 76.93174138663184
+accuracy 76.93174138663184
+{'product': 386.16805584093925, 'art': 325.8343633999291, 'clipart': 243.13860251807947}
+domian product
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.0129  Accuracy: 77.2336
+domian art
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.2711  Accuracy: 65.1669
+domian clipart
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 3.3226  Accuracy: 48.6277
+63.676068117263185 2.5355524099610265
+Model: 2020_realworld_to_product_art_clipart_resnet50_10999  Test Epoch: 1(100%)  Loss: 2.5356  Accuracy: 63.6761
+saving

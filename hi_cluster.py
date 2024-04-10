@@ -30,7 +30,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import fcluster
 
-
+# import sys
+# sys.path.insert(0, '/home/cds/Documents/sampath')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
@@ -101,12 +102,16 @@ def runExperiment():
     cfg['target_size'] = 65
     # model_tag = '2020_art_to_product_clipart_realworld_resnet50_1000102'
     # model_tag = '2020_art_to_product_clipart_realworld_resnet50_88888001'
+    # model_tag = '2020_art_to_product_realworld_clipart_resnet50_110008'
     # model_tag = '2020_realworld_to_product_art_clipart_resnet50_110004'
-    # model_tag = '2020_realworld_to_product_art_clipart_resnet50_110004'
-    # model_tag = '2020_clipart_to_product_art_realworld_resnet50_110004'
-    model_tag = '2020_product_to_clipart_art_realworld_resnet50_110004'
+    # model_tag = '2020_realworld_to_product_art_clipart_resnet50_110008'
+    # model_tag = '2020_clipart_to_product_art_realworld_resnet50_110008'
+    # model_tag = '2020_product_to_clipart_art_realworld_resnet50_110008'
+    model_tag = '2020_webcam_to_dslr_amazon_caltech10_resnet50_110002'
     load_tag = 'checkpoint1'
-    result = load('./output/model/target/{}_{}.pt'.format(model_tag, load_tag))
+    result = load('./output_OC/model/target/{}_{}.pt'.format(model_tag, load_tag))
+    # /home/cds/Documents/sampath/output/model/target
+    # result = load('/home/cds/Documents/sampath/output/model/target/{}_{}.pt'.format(model_tag, load_tag))
     clients = result['client']
     model = eval('models.{}()'.format(cfg['model_name']))
     feat = []
@@ -123,8 +128,12 @@ def runExperiment():
         # exit()
         # print(model.state_dict()['class_layer.fc.weight_g'].T.shape)
         # print(model.state_dict()['class_layer.fc.weight_v'].shape)
+        # exit()
         # f = (model.state_dict()['class_layer.fc.weight_v']/(1e-9+torch.norm(model.state_dict()['class_layer.fc.weight_v'],dim = 1,keepdim=True)))*model.state_dict()['class_layer.fc.weight_g']
-        
+        # f = model.state_dict()['feat_embed_layer.bottleneck.weight']
+        # # # print(f.shape)
+        # # # exit()
+        # feat.append(np.array(f.reshape(-1)))
         # # print(f.shape)
         # # exit()
         # feat.append(np.array(f.reshape(-1)))

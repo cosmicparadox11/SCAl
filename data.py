@@ -22,6 +22,9 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
               'USPS': ((0.5,), (0.5,)),
               'office31': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'OfficeHome': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'OfficeCaltech': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'DomainNet': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'VisDA': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'SYN32': ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))}
 
 
@@ -55,7 +58,7 @@ def fetch_dataset(data_name, domain=None):
             transforms.Resize(32),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-    elif data_name in ['office31', 'OfficeHome']:
+    elif data_name in ['office31', 'OfficeHome','OfficeCaltech','DomainNet']:
         # print(domain)
         print('data name',data_name)
         print('domain',domain)
@@ -141,7 +144,38 @@ def fetch_dataset(data_name, domain=None):
 
         # #     )
         # dataset['train'].target_size = target_size_ 
+    elif data_name in ['VisDA']:
+        # print(domain)
+        print('data name',data_name)
+        print('domain',domain)
+        # if domain == 'source':
+        dataset['train'] = eval('datasets.{}_{}(root=root, split=\'train\', '
+                            'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name,domain))
+    
 
+        
+        resize_size = 256
+        crop_size = 224
+        dataset['test'] = eval('datasets.{}_{}(root=root, split=\'test\', '
+                            'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name,domain))
+        print('original test len with 20 percent test:',len(dataset['test']))
+        
+        dataset['test'].transform = datasets.Compose(
+            [
+                # transforms.CenterCrop(224),
+                # transforms.ToTensor(),
+                # transforms.Normalize(*data_stats[data_name])
+                # # transforms.RandomResizedCrop(224)
+                # ResizeImage(resize_size),
+                transforms.Resize((resize_size, resize_size)),
+                # transforms.RandomResizedCrop(crop_size),
+                # transforms.RandomHorizontalFlip(),
+                transforms.CenterCrop(crop_size),
+                transforms.ToTensor(),
+                transforms.Normalize(*data_stats[data_name])
+            ]
+
+            )
     elif data_name in ['CIFAR10', 'CIFAR100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
@@ -233,7 +267,7 @@ def fetch_dataset_full_test(data_name, domain=None):
             transforms.Resize(32),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-    elif data_name in ['office31', 'OfficeHome']:
+    elif data_name in ['office31', 'OfficeHome','OfficeCaltech','DomainNet']:
         # print(domain)
         dataset['train'] = eval('datasets.{}_Full(root=root, domain=domain, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
@@ -294,7 +328,38 @@ def fetch_dataset_full_test(data_name, domain=None):
         # target_size_ = dataset['train'].target_size
         # dataset['test'] = ConcatDataset([dataset['train'],dataset['test']])
         # dataset['test'].target_size = target_size_
+    elif data_name in ['VisDA']:
+        # print(domain)
+        print('data name',data_name)
+        print('domain',domain)
+        # if domain == 'source':
+        dataset['train'] = eval('datasets.{}_{}(root=root, split=\'train\', '
+                            'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name,domain))
+    
 
+        
+        resize_size = 256
+        crop_size = 224
+        dataset['test'] = eval('datasets.{}_{}(root=root, split=\'test\', '
+                            'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name,domain))
+        print('original test len with 100 percent test:',len(dataset['test']))
+        
+        dataset['test'].transform = datasets.Compose(
+            [
+                # transforms.CenterCrop(224),
+                # transforms.ToTensor(),
+                # transforms.Normalize(*data_stats[data_name])
+                # # transforms.RandomResizedCrop(224)
+                # ResizeImage(resize_size),
+                transforms.Resize((resize_size, resize_size)),
+                # transforms.RandomResizedCrop(crop_size),
+                # transforms.RandomHorizontalFlip(),
+                transforms.CenterCrop(crop_size),
+                transforms.ToTensor(),
+                transforms.Normalize(*data_stats[data_name])
+            ]
+
+            )
     elif data_name in ['CIFAR10', 'CIFAR100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
@@ -857,7 +922,7 @@ class FixTransform(object):
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
             ])
-        elif data_name in ['office31', 'OfficeHome']:
+        elif data_name in ['office31', 'OfficeHome','VisDA','OfficeCaltech','DomainNet']:
             resize_size = 256
             crop_size = 224
             self.normal = transforms.Compose(
