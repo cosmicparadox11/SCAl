@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import time
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import models
 from itertools import compress
@@ -14,7 +15,7 @@ from utils import to_device, make_optimizer, collate, to_device
 from train_centralDA_target import op_copy
 from metrics import Accuracy
 from net_utils import set_random_seed
-from net_utils import init_multi_cent_psd_label,init_psd_label_shot_icml,init_psd_label_shot_icml_up
+from net_utils import init_multi_cent_psd_label,init_psd_label_shot_icml,init_psd_label_shot_icml_up,init_multi_cent_psd_label_crco
 from net_utils import EMA_update_multi_feat_cent_with_feat_simi,get_final_centroids
 from data import make_dataset_normal
 import gc
@@ -27,6 +28,8 @@ from scipy.cluster import hierarchy
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import fcluster
+import timm
+from scipy.spatial.distance import cdist
 
 
 class Server:
@@ -65,6 +68,11 @@ class Server:
         self.avg_cent = None
         self.avg_cent_ = None
         self.var_cent = None
+        
+        self.grad_diss = []
+        self.GD_num = []
+        self.GD_den = []
+        self.wt_delta = []
         # self.decay = 0.9
         # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         if 'fmatch' in cfg['loss_mode']:
@@ -81,10 +89,10 @@ class Server:
         del global_optimizer
 
 
-    def compute_dist(self,w1_in,w2_in,crit):
+    def compute_dist(self,w1_in,w2_in,crit='mse'):
         if crit == 'mse':
             # return torch.mean((w1_in.reshape(-1).detach() - w2_in.reshape(-1).detach())**2)
-            return  torch.norm((w1_in.reshape(-1) - w2_in.reshape(-1)),0.9)
+            return  torch.norm((w1_in.reshape(-1) - w2_in.reshape(-1)),2)
         elif crit == 'mae':
             return torch.mean(torch.abs(w1_in.reshape(-1).detach() - w2_in.reshape(-1).detach()))
             #num = torch.sum((prev_global_p - client_p)**2)
@@ -301,7 +309,7 @@ class Server:
                 model_state_dict = save_model_state_dict(model.state_dict())
                 client[m].model_state_dict = copy.deepcopy(model_state_dict)
                 
-                if cfg['global_reg']:
+                if cfg['global_reg'] == 1:
                     model.load_state_dict(self.global_model_state_dict)
                     model_state_dict = save_model_state_dict(model.state_dict())
                     client[m].global_model_state_dict = copy.deepcopy(model_state_dict)
@@ -362,7 +370,8 @@ class Server:
             model = torch.nn.DataParallel(model,device_ids = [0, 1])
             model.to(cfg["device"])
         
-        model.load_state_dict(self.model_state_dict)
+        # model.load_state_dict(self.model_state_dict)
+        model.load_state_dict(self.model_state_dict,strict=False)
         # if batchnorm_dataset is not None:
         #     model = make_batchnorm_stats(batchnorm_dataset, model, 'global')
 
@@ -429,7 +438,11 @@ class Server:
                         model = torch.nn.DataParallel(model,device_ids = [0, 1])
                         model.to(cfg["device"])
                     # model.load_state_dict(self.model_state_dict)
-                    model.load_state_dict(self.model_state_dict)
+                    model.load_state_dict(self.model_state_dict,strict=False)
+                    # model.load_state_dict(self.model_state_dict)
+                    if cfg['GD']:
+                        prev_model = eval('models.{}()'.format(cfg['model_name']))
+                        prev_model.load_state_dict(self.model_state_dict,strict=False)
                     global_optimizer = make_optimizer(model.parameters(), 'global')
                     global_optimizer.load_state_dict(self.global_optimizer_state_dict)
                     global_optimizer.zero_grad()
@@ -444,25 +457,117 @@ class Server:
                     # # Store the averaged batchnorm parameters
                     # bn_parameters = {k: None for k, v in model.named_parameters() if isinstance(v, torch.nn.BatchNorm2d)}
                     # print()
+                    avg_norm = 0.0
+                    
+                    avg_norm_list = []
+                    param_key_list = []
+                    param_num_list = []
+                    param_den_list = []
+                    param_GD_list = []
                     for k, v in model.named_parameters():
-                        
+                        param_gd_num = 0.0
                         isBatchNorm = True if  '.bn' in k else False
                         parameter_type = k.split('.')[-1]
                         # print(f'{k} with parameter type {parameter_type},is batchnorm {isBatchNorm}')
                         if 'weight' in parameter_type or 'bias' in parameter_type:
                             tmp_v = v.data.new_zeros(v.size())
+                            if cfg['GD']:
+                                tmp_v_GD = v.data.new_zeros(v.size())
                             for m in range(len(valid_client)):
                                 # print(valid_client[m].model_state_dict.keys())
                                 if cfg['world_size']==1:
                                     tmp_v += weight[m] * valid_client[m].model_state_dict[k]
+                                    if cfg['GD']:
+                                        tmp_v_GD += valid_client[m].model_state_dict[k]
+                                        v_k_grad = (v.data-tmp_v_GD).detach()
+                                        param_gd_num  += torch.norm(v_k_grad,2).item()**2
                                 elif  cfg['world_size']>1:
                                     tmp_v += weight[m] * valid_client[m].model_state_dict[k].to(cfg["device"])
+                    
+                                    
                             v.grad = (v.data - tmp_v).detach()
+                            # if cfg['GD']:
+                            #     v_gd.grad = (v.data)
 
+                            if cfg['GD']:
+                                param_num_list.append(param_gd_num/len(valid_client))
+                                param_key_list.append(k)
+                                param_norm = torch.norm(v.grad,2)
+                                param_gd_den = param_norm.item()**2
+                                param_den_list.append(param_gd_den)
+                                param_GD = param_gd_num/(param_gd_den+1e-8)
+                                param_GD_list.append(param_GD)
+                                
+                                # avg_norm += param_norm.item()**2
+                                # print(avg_norm)
+                                # avg_norm_list.append(param_norm.item())
+                    if cfg['GD']:
+                        self.GD_num.append(param_num_list)
+                        self.GD_den.append(param_den_list)
+                        self.param_list  = param_key_list
+                        tag__ = cfg['model_tag']
+                        np.save(f'./{tag__}_param_num_GD.npy',self.GD_num)
+                        np.save(f'./{tag__}_param_den_GD.npy',self.GD_den)
+                        np.save(f'./{tag__}_param_keys.npy',self.param_list)
+                    for m in range(len(valid_client)):
+                        if cfg['adpt_thr']:
+                            # print('saving client threshold')
+                            tag = cfg['model_tag']
+                            np.save(f'./output/{tag}_{valid_client[m].client_id}_{valid_client[m].domain}_threshold_list.npy',valid_client[m].client_threshold)
+                            np.save(f'./output/{tag}_{valid_client[m].client_id}_{valid_client[m].domain}_communication_rounds.npy',valid_client[m].communication_round)
+                                
+                    # if cfg['GD']:
+                    #     norms_list = []
+                    #     for m in range(len(valid_client)):
+                    #         # print(valid_client[m].model_state_dict.keys())
+                    #         norm_k = 0.0
+                    #         for k, v in model.named_parameters():
+                    #             isBatchNorm = True if  '.bn' in k else False
+                    #             parameter_type = k.split('.')[-1]
+                    #             # parameter_type = k.split('.')[-1]
+                    #             if 'weight' in parameter_type or 'bias' in parameter_type:
+                    #                 tmp_v = v.data.new_zeros(v.size())
+                    #                 if cfg['world_size']==1:
+                    #                     tmp_v +=valid_client[m].model_state_dict[k]  
+                    #                     # tmp_v =valid_client[m].model_state_dict[k]  
+                    #                 v.grad = (v.data - tmp_v).detach()  
+                    #                 param_norm = torch.norm(v.grad,2)
+                    #                 norm_k += param_norm.item()**2
+                    #         norms_list.append(norm_k)
+                    #     GD = np.mean(norms_list)/avg_norm
+                    #     print(norms_list)
+                    #     print(f'grad_diss={GD}')
+                    #     self.grad_diss.append(GD)
+                    #     tag__ = cfg['model_tag']
+                    #     np.save(f'./{tag__}_grad_diss.npy',self.grad_diss)
+                        
+                    
                     global_optimizer.step()
-
                     self.global_optimizer_state_dict = save_optimizer_state_dict(global_optimizer.state_dict())
                     self.model_state_dict = save_model_state_dict(model.state_dict())
+                    #####################################################################################
+                    # if cfg['GD']:
+                    #     weight_delta = 0
+                    #     # avg_model = copy.deepcopy(model)
+                    #     avg_model = eval('models.{}()'.format(cfg['model_name']))
+                    #     avg_model.load_state_dict(self.model_state_dict)
+                    #     param_prev_g = {}
+                    #     for k,v in prev_model.named_parameters():
+                    #         param_prev_g[k] = v
+                        
+                    #     param_avg = {}
+                    #     for k,v in avg_model.named_parameters():
+                    #         param_avg[k] = v
+                    #     for k, v in avg_model.named_parameters():
+                    #         parameter_type = k.split('.')[-1]
+                    #         if 'weight' in parameter_type or 'bias' in parameter_type:
+                    #             weight_delta += self.compute_dist(param_prev_g[k],param_avg[k],'mse')
+                                
+                    #             # print(weight_delta)
+                    #     self.wt_delta.append(weight_delta.item())
+                    #     print(self.wt_delta)
+                    #     np.save(f'./{tag__}_wt_delta.npy',self.wt_delta)
+                    ##########################################################################################
                     # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         elif ('fmatch' not in cfg['loss_mode'] and cfg['adapt_wt'] == 0 and cfg['with_BN'] == 0):
             print('FedAvg with out BN params')
@@ -1424,8 +1529,108 @@ class Server:
         self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
         self.model_state_dict = save_model_state_dict(model.state_dict())
         return
+def init_weights(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv2d') != -1 or classname.find('ConvTranspose2d') != -1:
+        nn.init.kaiming_uniform_(m.weight)
+        nn.init.zeros_(m.bias)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight, 1.0, 0.02)
+        nn.init.zeros_(m.bias)
+    elif classname.find('Linear') != -1:
+        nn.init.xavier_normal_(m.weight)
+        nn.init.zeros_(m.bias)
+        
+class clientClassifier(nn.Module):
+                def __init__(self, embed_dim, class_num, type="linear"):
+                    super(clientClassifier, self).__init__()
+                    
+                    self.type = type
+                    if type == 'wn':
+                        self.fc = nn.utils.weight_norm(nn.Linear(embed_dim, class_num), name="weight")
+                        self.fc.apply(init_weights)
+                    else:
+                        self.fc = nn.Linear(embed_dim, class_num)
+                        self.fc.apply(init_weights)
 
+                def forward(self, x):
+                    x = self.fc(x)
+                    return x
+class clientEmbedding(nn.Module):
+    
+    def __init__(self, feature_dim, embed_dim=256, type="ori"):
+    
+        super(clientEmbedding, self).__init__()
+        self.bn = nn.BatchNorm1d(embed_dim, affine=True)
+        # self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(p=0.5)
+        self.bottleneck = nn.Linear(feature_dim, embed_dim)
+        self.bottleneck.apply(init_weights)
+        self.type = type
 
+    def forward(self, x):
+        # print(self.bottleneck,x.shape)
+        x = self.bottleneck(x)
+        if self.type == "bn":
+            x = self.bn(x)
+        return x     
+    
+class Adapt(nn.Module):
+    
+    def __init__(self):
+        
+        super(Adapt, self).__init__()
+        ## Activation statistics ##
+        self.act_stats = {}
+        self.running_mean = {}
+        self.running_var = {}
+        self.backbone_arch = cfg['backbone_arch'] # resnet101
+        self.embed_feat_dim = cfg['embed_feat_dim'] # 256
+        self.class_num = cfg['target_size']          # 12 for VisDA
+
+        # if "vit-small" in self.backbone_arch:   
+        #     # self.backbone_layer = ResBase(self.backbone_arch) 
+        #     self.backbone_layer = timm.create_model("vit_small_patch16_224", pretrained=True)
+        #     self.backbone_layer.head = nn.Identity()
+        #     # self.backbone_layer = ResNet(Bottleneck, [3,4,6,3], self.class_num)
+        # elif "vgg" in self.backbone_arch:
+        #     self.backbone_layer = VGGBase(self.backbone_arch)
+        # else:
+        #     raise ValueError("Unknown Feature Backbone ARCH of {}".format(self.backbone_arch))
+        
+        self.backbone_feat_dim = 384
+        if cfg['vit_bn']:
+            self.feat_embed_layer = clientEmbedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
+            self.class_layer = clientClassifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
+        else:
+            self.feat_embed_layer = clientEmbedding(self.backbone_feat_dim, self.embed_feat_dim)
+            # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim)
+            
+            # self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
+            self.class_layer = clientClassifier(self.embed_feat_dim, class_num=self.class_num)
+            # self.class_layer = Classifier(self.backbone_feat_dim, class_num=self.class_num)
+    
+    def get_emd_feat(self, input_imgs):
+        # input_imgs [B, 3, H, W]
+        backbone_feat = self.backbone_layer(input_imgs)
+        embed_feat = self.feat_embed_layer(backbone_feat)
+        return embed_feat
+    
+    def forward(self,backbone_feat, apply_softmax=True):
+        embed_feat = self.feat_embed_layer(backbone_feat)
+        cls_out = self.class_layer(embed_feat)
+        # cls_out = self.class_layer(backbone_feat)
+        if apply_softmax:
+            cls_out = torch.softmax(cls_out, dim=1)
+        else:
+            pass
+        if cfg['cls_ps']:
+            return embed_feat, cls_out
+        return embed_feat, cls_out
+    
+    
+    
 class Client:
     def __init__(self, client_id, model, data_split=None):
         self.client_id = client_id
@@ -1434,10 +1639,18 @@ class Client:
         # print(len(data_split['train']))
         self.model_state_dict = save_model_state_dict(model.state_dict())
         self.global_model_state_dict = save_model_state_dict(model.state_dict())
+        if cfg['cls_ps']:
+            self.Adapt = Adapt()
+            self.adapt_copy = True
+            
+        
         self.tech_model_state_dict = None
         self.server_state_dict = None
         self.running_mean = None
         self.running_var = None
+        self.threshold = cfg['threshold']
+        self.adpt_thr = cfg['adpt_thr']
+        self.communication_round = 0 
         # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         if 'fmatch' in cfg['loss_mode']:
             optimizer = make_optimizer(model.make_phi_parameters(), 'local')
@@ -1460,8 +1673,9 @@ class Client:
         self.beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
         self.verbose = cfg['verbose']
         self.EL_loss = elr_loss(500)
-        if 'crco' in cfg['loss_mode']:
-            self.num_class = self.train_loaders[0].dataset.n_classes
+        self.client_threshold = []
+        if cfg['run_crco']:
+            # self.num_class = self.train_loaders[0].dataset.n_classes
             self.baseline_type = cfg['baseline_type']
             self.lambda_ent = cfg['lambda_ent']
             self.lambda_div = cfg['lambda_div']
@@ -1487,9 +1701,12 @@ class Client:
             self.use_only_current_batch_for_instance = cfg['use_only_current_batch_for_instance']
             self.max_iters = cfg['max_iters']
             self.beta = cfg['beta']
+            self.num_class =  cfg['target_size'] 
+            self.iteration = 0 
             #
             # rank, world_size = get_dist_info()
             rank, world_size = 0,1
+            self.local_rank   = cfg['device'].split(':')[1]
             self.world_size = world_size
             if self.local_rank == 0:
                 log_names = ['info_nce', 'mean_max_prob', 'mask', 'mask_acc', 'cluster_mask_acc']
@@ -1543,7 +1760,7 @@ class Client:
                     # psd_label = all_psd_label[input['id']]
                     # psd_label_ = all_psd_label[input['id']]
                     # all_psd_label = all_psd_label.cpu()
-                    f_weak,weak_logit,f_s1,strong1_logit,f_s2,strong2_logit = stu_model(input)
+                    f_weak,weak_logit,f_s1,strong1_logit,f_s2,strong2_logit = tech_model(input)
                     # with torch.no_grad():
                     #     t_f_weak,t_weak_logit,t_f_s1,t_strong1_logit,t_f_s2,t_strong2_logit = tech_model(input)
                     # emd_feat_stack.append(F.normalize(f_weak,dim=-1))
@@ -1666,8 +1883,9 @@ class Client:
     def IM_loss(self, score):
         softmax_out = score
         loss_ent = -torch.mean(torch.sum(softmax_out * torch.log(softmax_out + 1e-5), 1)) * 0.5
-        tensors_gather = [torch.ones_like(softmax_out) for _ in range(torch.distributed.get_world_size())]
-        torch.distributed.all_gather(tensors_gather, softmax_out, async_op=False)
+        # tensors_gather = [torch.ones_like(softmax_out) for _ in range(torch.distributed.get_world_size())]
+        tensors_gather = [torch.ones_like(softmax_out) for _ in range(1)]
+        # torch.distributed.all_gather(tensors_gather, softmax_out, async_op=False)
         self_ind = self.local_rank
         msoftmax = 0
         for i in range(len(tensors_gather)):
@@ -1691,9 +1909,11 @@ class Client:
             idx_near = idx_near[:, 1:]  # batch x K
             score_near = self.aad_weak_score_bank[idx_near]  # batch x K x C
         #
-        tensors_gather = [torch.ones_like(score) for _ in range(torch.distributed.get_world_size())]
-        torch.distributed.all_gather(tensors_gather, score, async_op=False)
-        tensors_gather[self.local_rank] = score
+        tensors_gather = [torch.ones_like(score) for _ in range(1)]
+        # tensors_gather = [torch.ones_like(score) for _ in range(torch.distributed.get_world_size())]
+        # torch.distributed.all_gather(tensors_gather, score, async_op=False)
+        # tensors_gather[int(self.local_rank)] = score
+        tensors_gather[0] = score
         outputs = torch.cat(tensors_gather, dim=0)
         softmax_out_un = outputs.unsqueeze(1).expand(-1, self.num_k, -1)  # batch x K x C
         #
@@ -1710,16 +1930,16 @@ class Client:
         neg_pred = torch.mean(dot_neg)
         return loss_1, neg_pred
 
-    def baseline_loss(self, score, feat, batch_metrics, logits):
+    def baseline_loss(self, score, feat, logits):
         if self.baseline_type == "IM":
             loss_ent, loss_div = self.IM_loss(score)
-            batch_metrics['loss']['ent'] = loss_ent.item()
-            batch_metrics['loss']['div'] = loss_div.item()
+            # batch_metrics['loss']['ent'] = loss_ent.item()
+            # batch_metrics['loss']['div'] = loss_div.item()
             return loss_ent * self.lambda_ent + loss_div * self.lambda_div
         elif self.baseline_type == 'AaD':
             loss_aad_pos, loss_aad_neg = self.AaD_loss(score, feat)
-            batch_metrics['loss']['aad_pos'] = loss_aad_pos.item()
-            batch_metrics['loss']['aad_neg'] = loss_aad_neg.item()
+            # batch_metrics['loss']['aad_pos'] = loss_aad_pos.item()
+            # batch_metrics['loss']['aad_neg'] = loss_aad_neg.item()
             tmp_lambda = (1 + 10 * self.iteration / self.max_iters) ** (-self.beta)
             return (loss_aad_pos + loss_aad_neg * tmp_lambda) * self.lambda_aad
         else:
@@ -1815,20 +2035,26 @@ class Client:
     def obtain_sim_mat(self,tech_model, usage):
         # base_model = self.model_dict['base_model']
         # fc_weight = base_model.module.online_classifier.fc.weight_v.detach()
-        fc_weight = tech_model.fc.weight_v.detach()
+        # print(model.state_dict()['class_layer.fc.weight_g'].T.shape)
+        # print(model.state_dict()['class_layer.fc.weight_v'].shape)
+        if cfg['vit_bn']:
+            fc_weight = tech_model.class_layer.fc.weight_v.detach()
+        else:
+            fc_weight = tech_model.class_layer.fc.weight.detach()
         normalized_fc_weight = F.normalize(fc_weight)
         sim_mat_orig = normalized_fc_weight @ normalized_fc_weight.T
         eye_mat = torch.eye(self.num_class).to("cuda:{}".format(self.local_rank))
         non_eye_mat = 1 - eye_mat
         sim_mat = (eye_mat + non_eye_mat * sim_mat_orig * self.non_diag_alpha).clone()
         return sim_mat
+    
     def make_hard_pseudo_label(self, soft_pseudo_label):
         max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
         mask = max_p.ge(cfg['threshold'])
         return hard_pseudo_label, mask
     
     def make_dataset(self, dataset, metric, logger):
-        if 'sup' in cfg['loss_mode'] or 'bmd' in cfg['loss_mode'] or 'ladd' in cfg['loss_mode']:# or 'sim' in cfg['loss_mode']:
+        if 'sup' in cfg['loss_mode'] or 'bmd' in cfg['loss_mode'] or 'ladd' in cfg['loss_mode'] or 'crco' in cfg['loss_mode']:# or 'sim' in cfg['loss_mode']:
             return None,None,dataset
         
         elif 'sim' in cfg['loss_mode']:
@@ -2437,7 +2663,7 @@ class Client:
             if cfg['world_size']==1:
                 # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
                 model = eval('models.{}()'.format(cfg['model_name']))
-                if cfg['global_reg']:
+                if cfg['global_reg'] == 1 or cfg['FedProx']:
                     global_model = eval('models.{}()'.format(cfg['model_name']))
                 # init_model = eval('models.{}()'.format(cfg['model_name']))
             elif cfg['world_size']>1:
@@ -2450,14 +2676,18 @@ class Client:
             # print(self.model_state_dict.backbone_layer.layer4.1.bn3.running_mean.shape)
             # exit()
             model.load_state_dict(self.model_state_dict)
-            if cfg['global_reg']:
-                global_model.load_state_dict(self.global_model_state_dict)
+            if cfg['global_reg'] == 1 or cfg['FedProx']:
+                print('creating model for global regularization')
+                # print(self.global_model_state_dict)
+                # exit()
+                # global_model.load_state_dict(self.global_model_state_dict)
+                global_model.load_state_dict(self.model_state_dict)
                 global_model.to(cfg["device"])
             # init_model.load_state_dict(self.model_state_dict)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             # self.optimizer_state_dict['param_groups'][0]['lr'] = 0.001
 
-            if ( cfg['model_name'] == 'resnet50' or cfg['model_name'] == 'VITs') and cfg['par'] == 1:
+            if ( cfg['model_name'] == 'resnet50' or cfg['model_name'] == 'resnet101' or cfg['model_name'] == 'VITs') and cfg['par'] == 1:
                 print('freezing')
                 cfg['local']['lr'] = lr
                 # cfg['local']['lr'] = 0.001
@@ -2470,8 +2700,10 @@ class Client:
                         # v.requires_grad = False
                         # print(k)
                     else:
-                        # v.requires_grad = False
-                        param_group_ += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
+                        if cfg['only_bn']:
+                            v.requires_grad = False
+                        else:
+                            param_group_ += [{'params': v, 'lr': cfg['local']['lr']*0.1}]
 
                 for k, v in model.feat_embed_layer.named_parameters():
                     # print(k)
@@ -2479,8 +2711,30 @@ class Client:
                 for k, v in model.class_layer.named_parameters():
                     v.requires_grad = False
                     # param_group += [{'params': v, 'lr': cfg['local']['lr']}]
-
-                optimizer_ = make_optimizer(param_group_, 'local')
+                if cfg['cls_ps']:
+                    for k, v in self.Adapt.feat_embed_layer.named_parameters():
+                        param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
+                        if self.adapt_copy:
+                            print('copying embed layer')
+                            for k_m,v_m in model.feat_embed_layer.named_parameters():
+                                if k == k_m:
+                                    v = v_m
+                    for k, v in self.Adapt.class_layer.named_parameters():
+                        param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
+                        if self.adapt_copy:
+                            print('copying classsifier layer')
+                            for k_m,v_m in model.class_layer.named_parameters():
+                                if k == k_m:
+                                    v = v_m
+                            self.adapt_copy = False
+                    
+                # print(self.Adapt.parameters())
+                # exit()
+                if cfg['cls_ps']:
+                    # params = list(param_group_) + list(self.Adapt.parameters())
+                    optimizer_ = make_optimizer(param_group_, 'local')
+                else:
+                    optimizer_ = make_optimizer(param_group_, 'local')
                 optimizer = op_copy(optimizer_)
                 del optimizer_
             # # elif cfg['model_name']=='resnet9':
@@ -2519,6 +2773,9 @@ class Client:
             # optimizer.load_state_dict(self.optimizer_state_dict)
             # model.to_device(cfg['device'])
             model.to(cfg["device"])
+            if cfg['cls_ps']:
+                # params = list(model.parameters()) + list(self.classifier.parameters())
+                self.Adapt.to(cfg['device'])
             # init_model.to(cfg["device"])
             model.train(True)
             # print(scheduler)
@@ -2534,30 +2791,37 @@ class Client:
                 num_batches = None
             # num_batches =None
             # for epoch in range(1, cfg['client']['num_epochs']+1 ):
-            print(self.client_id,self.domain)
-            if self.domain == 'clipart' and cfg['clip_t']:
-                print('reducing threshold for clip to 60\% ,80 global model  ')
-                thres = cfg['threshold']
-                for k, v in model.named_parameters():
-                    for k_g,v_g in global_model.named_parameters():
-                        if k_g == k:
-                            v = 0.2*v+0.8*v_g
+            print('client ID:',self.client_id,'client domain',self.domain)
+            if self.domain == 'amazon' and cfg['clip_t']:
+                print('reducing threshold for clip to 80\% ,99 global model  ')
+                thres = 0.8
+                # for k, v in model.named_parameters():
+                #     for k_g,v_g in global_model.named_parameters():
+                #         if k_g == k:
+                #             v = 0.2*v+0.8*v_g
             else:
-                thres = cfg['threshold']
+                # thres = cfg['threshold']
+                thres = self.threshold
+                print('self.threshold',self.threshold)
             # if self.domain == 'webcam':
             #     num_local_epochs = cfg['tde']
             # else:
             #     num_local_epochs = cfg['client']['num_epochs']
             if fwd_pass == True and cfg['cluster']:
-                 num_local_epochs = 10                     #re 10
+                print('changing local epochs to 10')
+                num_local_epochs = 10                     #re 10
             #print(num_local_epochs)
             
             # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_data_loader), eta_min=0)
             # print(len(train_data_loader))
             # exit()
             id = self.client_id
-            domain = self.cluster_id
+            domain = self.domain
+            self.communication_round += 1
+            print('number of loacl epochs',num_local_epochs)
+            # exit()
             for epoch in range(0, num_local_epochs ):
+                print('current epoch:',epoch)
                 output = {}
                 # lr = optimizer.param_groups[0]['lr']
                 # print(self.cent)
@@ -2567,14 +2831,45 @@ class Client:
                 # exit()
                 # fwd_pass = 0
                 if cfg['run_shot']:
-                    if cfg['global_reg']:
-                        loss,cent = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass=fwd_pass,scheduler=scheduler,client=client,global_model=global_model,thres=thres)
+                    print('running shot')
+                    if cfg['global_reg'] and cfg['cls_ps']==False:
+                        print('running with global reg')
+                        # print('global regularization')
+                        # print(global_model)
+                        # exit()
+                        loss, threshold = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass=fwd_pass,scheduler=scheduler,client=client,global_model=global_model,thres=thres, adpt_thr = self.adpt_thr)
+                        self.client_threshold.append(threshold)
+                        # if epoch == 0 and self.adpt_thr :
+                        #     print('setting self.threshold', threshold)
+                        #     self.threshold = threshold
+                        #     thres = self.threshold
+                        #     self.adpt_thr = 0
+                    
+                    elif cfg['global_reg'] and cfg['cls_ps']==True:
+                        print('running with global reg')
+                        loss,cent = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass=fwd_pass,scheduler=scheduler,client=client,global_model=global_model,thres=thres,cls_ps=self.Adapt)
+                    
                     else:
-                        loss,cent = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass=fwd_pass,scheduler=scheduler,client=client,thres=thres)
+                        loss, threshold = shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass=fwd_pass,scheduler=scheduler,client=client,global_model = model,thres=thres, adpt_thr = self.adpt_thr)
+                        self.client_threshold.append(threshold)
+                        # if epoch == 0 and self.adpt_thr :
+                        #     self.threshold = threshold
+                        #     thres = self.threshold
+                        #     self.adpt_thr = 0
                 else:
                     # loss,cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent)
                     # loss,cent,var_cent = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,fwd_pass,scheduler)
-                    loss = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,fwd_pass,scheduler)
+                    print('running BMD')
+                    if cfg['global_reg']:
+                        loss, threshold = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass,scheduler,global_model=global_model,thres=thres,adpt_thr = self.adpt_thr)
+                        self.client_threshold.append(threshold)
+                        # if epoch == 0 and self.adpt_thr :
+                        #     self.threshold = threshold
+                    else:
+                        loss, threshold = bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,self.cent,self.avg_cent,id,domain,fwd_pass,scheduler,thres=thres,adpt_thr = self.adpt_thr)
+                        self.client_threshold.append(threshold)
+                        # if epoch == 0 and self.adpt_thr :
+                        #     self.threshold = threshold
                     # self.var_cent = var_cent.cpu()
                     # self.cent = cent.cpu()
                 # self.var_cent = var_cent.cpu()
@@ -2585,13 +2880,15 @@ class Client:
         
         
         elif 'crco' in cfg['loss_mode']:
+            print('entered crco training')
+            # exit()
             _,_,dataset = dataset
             train_data_loader = make_data_loader({'train': dataset}, 'client')['train']
             test_data_loader = make_data_loader({'train': dataset},'client',batch_size = {'train':50},shuffle={'train':False})['train']
             
             self.data_len = len(dataset)
             num_image = self.data_len
-            rank = 0
+            rank =  cfg['device'].split(':')[1]
             feat_dim = cfg['embed_feat_dim']
             self.weak_feat_bank = torch.randn(num_image, feat_dim).to('cuda:{}'.format(rank))
             self.weak_score_bank = torch.randn(num_image, self.num_class).to('cuda:{}'.format(rank))
@@ -2612,6 +2909,15 @@ class Client:
                 
                 stu_model = eval('models.{}()'.format(cfg['model_name']))
                 tech_model = eval('models.{}()'.format(cfg['model_name']))
+                if cfg['global_reg'] == 1:
+                    print('creating model for global regularization')
+                    global_model = eval('models.{}()'.format(cfg['model_name']))
+                    # print(self.global_model_state_dict)
+                    # exit()
+                    # global_model.load_state_dict(self.global_model_state_dict)
+                    global_model.load_state_dict(self.model_state_dict)
+                    global_model.to(cfg["device"])
+                    
                 
             elif cfg['world_size']>1:
                 cfg["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -2624,8 +2930,8 @@ class Client:
     
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
             # self.optimizer_state_dict['param_groups'][0]['lr'] = 0.001
-
-            if cfg['model_name'] == 'resnet50_crco' and cfg['par'] == 1:
+            
+            if (cfg['model_name'] == 'resnet50' or cfg['model_name'] == 'VITs') and cfg['par'] == 1:
                 print('freezing')
                 cfg['local']['lr'] = lr
                 # cfg['local']['lr'] = 0.001
@@ -2640,9 +2946,9 @@ class Client:
                     else:
                         v.requires_grad = False
 
-                # for k, v in model.feat_embed_layer.named_parameters():
-                #     # print(k)
-                #     param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
+                for k, v in stu_model.feat_embed_layer.named_parameters():
+                    # print(k)
+                    param_group_ += [{'params': v, 'lr': cfg['local']['lr']}]
                 for k, v in stu_model.class_layer.named_parameters():
                     v.requires_grad = False
                     # param_group += [{'params': v, 'lr': cfg['local']['lr']}]
@@ -2651,14 +2957,17 @@ class Client:
                 optimizer = op_copy(optimizer_)
                 del optimizer_
             else:
-                optimizer = make_optimizer(model.parameters(), 'local')
+                optimizer = make_optimizer(stu_model.parameters(), 'local')
                 optimizer.load_state_dict(self.optimizer_state_dict)
             
             stu_model.train(True)
             # print(scheduler)
             # exit()
-            
-                
+            num_local_epochs = cfg['client']['num_epochs']
+            if fwd_pass == True and cfg['cluster']:
+                 num_local_epochs = 10                     #re 10
+            print(fwd_pass,num_local_epochs)   
+            # exit()
             if cfg['client']['num_epochs'] == 1:
                 num_batches = int(np.ceil(len(train_data_loader) * float(cfg['local_epoch'][0])))
             else:
@@ -2672,29 +2981,70 @@ class Client:
             if fwd_pass == True and cfg['cluster']:
                  num_local_epochs = 10                     #re 10
             #print(num_local_epochs)
-            num_local_epochs = cfg['client']['num_epochs']
+            stu_model.to(cfg["device"])
+            tech_model.to(cfg["device"])
+            
             self.update_bank(stu_model,tech_model,test_data_loader)
             self.obtain_all_label()
             if self.iteration == 0:
                 self.class_contrastive_simmat = self.obtain_sim_mat(tech_model,usage='class_contrastive')
                 self.instance_contrastive_simmat = self.obtain_sim_mat(tech_model,usage='instance_contrastive')
+            # print(num_local_epochs)
+            # exit()
             for epoch in range(0, num_local_epochs ):
                 output = {}
                 loss_stack = []
                 stu_model.to(cfg["device"])
                 tech_model.to(cfg["device"])
-                with torch.no_grad():
-                    stu_model.eval()
-                    tech_model.eval()
-                    #want to update banks and get labels as per thr og code
-                    all_psd_label ,all_emd_feat,all_cls_out= init_multi_cent_psd_label_crco(stu_model,tech_model,test_data_loader)
+                # with torch.no_grad():
+                #     stu_model.eval()
+                #     tech_model.eval()
+                #     #want to update banks and get labels as per thr og code
+                #     all_psd_label ,all_emd_feat,all_cls_out= init_multi_cent_psd_label_crco(stu_model,tech_model,test_data_loader)
                 stu_model.train()
                 epoch_idx=epoch
                 grad_bank = {}
                 avg_counter = 0 
-                
+                adpt_thr = self.adpt_thr
+                thres = adpt_thr
+                if adpt_thr:
+                    print('adapting threshold')
+                    with torch.no_grad():
+                        stu_model.eval()
+                        _, _ ,_,all_cls_out= init_multi_cent_psd_label_crco(stu_model,test_data_loader)
+                    print('adapting threshold')
+                    ent = torch.sum(-all_cls_out * torch.log(all_cls_out + 1e-5), dim=1)
+                    tag = cfg['model_tag']
+                    # np.save(f'./output/Entropy_client {id}:{domain}_{tag}.npy',ent)
+                # return None, None
+                    entropy_mean = ent.mean().item()
+                    entropy_median = ent.median().item()
+                    entropy_std = ent.std().item()
+                    entropy_iqr = np.percentile(ent, 75) - np.percentile(ent, 25)
+                    # skewness_measure = (entropy_mean - entropy_median) / entropy_iqr
+                    # skewness_measure = (entropy_mean - entropy_median) / entropy_std
+                    mean_median_diff = entropy_mean - entropy_median
+                    # new_threshold = 0.6+((skewness_measure+1)*(0.99-0.6)/2)
+                    # Min-max scaling with clipping
+                    # skewness_clipped = max(-0.1, min(skewness_measure, 0.15))  # Clip skewness between -1.5 and 1.5
+                    # # normalized_skewness = 0.7 + ((skewness_clipped + 1) * (0.95 - 0.7)) / 2  # Map to [0.7, 0.95]
+                    # new_threshold = 0.8+skewness_clipped
+                    ##########################################################
+                    # Calculate Fisher's skewness
+                    n = len(ent)
+                    third_moment = ((ent - entropy_mean) ** 3).mean().item()
+                    second_moment = ((ent - entropy_mean) ** 2).mean().item()
+                    # fisher_skewness = third_moment / (second_moment ** 1.5)
+                    fisher_skewness = 3*(entropy_mean - entropy_median) / entropy_std
+                    
+                    # Clipping Fisher's skewness to a set range for stability
+                    skewness_clipped = max(-0.1, min(fisher_skewness, 0.15))  # Clip between -0.1 and 0.15
 
+                    # Adaptive threshold using Fisher's skewness
+                    thres = 0.8 + skewness_clipped
+                    print('adapted _thr', thres)
                 for i, input in enumerate(train_data_loader):
+                    # print(i,'hello')
                     input = collate(input)
                     input_size = input['data'].size(0)
                     if input_size<=1:
@@ -2702,73 +3052,162 @@ class Client:
                     input['loss_mode'] = cfg['loss_mode']
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
-                    all_psd_label = to_device(all_psd_label, cfg['device'])
-                    psd_label = all_psd_label[input['id']]
-                    psd_label_ = all_psd_label[input['id']]
-                    all_psd_label = all_psd_label.cpu()
-                    f_weak,weak_logit,f_s1,strong1_logit,f_s2,strong2_logit = stu_model(input)
-                    with torch.no_grad():
-                        t_f_weak,t_weak_logit,t_f_s1,t_strong1_logit,t_f_s2,t_strong2_logit = tech_model(input)
+                    # all_psd_label = to_device(all_psd_label, cfg['device'])
+                    # psd_label = all_psd_label[input['id']]
+                    # psd_label_ = all_psd_label[input['id']]
+                    # all_psd_label = all_psd_label.cpu()
+                    # f_weak,weak_logit,f_s1,strong1_logit,f_s2,strong2_logit = stu_model(input)
+                    # # with torch.no_grad():
+                    # t_f_weak,t_weak_logit,t_f_s1,t_strong1_logit,t_f_s2,t_strong2_logit = tech_model(input)
                     
-                    weak_prob,s1_prob,s2_prob = F.softmax(weak_logit,dim=-1),F.softmax(strong1_logit,dim=-1),F.softmax(strong2_logit,dim=-1)
-                    t_weak_prob,t_s1_prob,t_s2_prob = F.softmax(t_weak_logit,dim=-1),F.softmax(t_strong1_logit,dim=-1),F.softmaxt_(strong2_logit,dim=-1)
+                    with torch.no_grad():
+                        target_f_weak,target_weak_logit,target_f_s1,target_strong1_logit,target_f_s2,target_strong2_logit = tech_model(input)
+                        
+                        if cfg['global_reg'] == 1:
+                                # _,g_yw,g_ys = global_model(input)
+                            global_f_weak,global_weak_logit,global_f_s1,global_strong1_logit,global_f_s2,global_strong2_logit = global_model(input)
+                            g_yw,g_ys = torch.softmax(global_weak_logit,dim=1),global_strong1_logit
+                            
+                
+                # lable_s = torch.softmax(x_s,dim=1)
+                    online_f_weak,online_weak_logit,online_f_s1,online_strong1_logit,online_f_s2,online_strong2_logit = stu_model(input)
+                    target_weak_prob,target_s1_prob,target_s2_prob = F.softmax(target_weak_logit,dim=-1),F.softmax(target_strong1_logit,dim=-1),F.softmax(target_strong2_logit,dim=-1)
+                    online_weak_prob,online_s1_prob,online_s2_prob = F.softmax(online_weak_logit,dim=-1),F.softmax(online_strong1_logit,dim=-1),F.softmax(online_strong2_logit,dim=-1)
                     
                     input = to_device(input, 'cpu')
                     #
                     # timely updated weak bank
-                    self.update_weak_bank_timely(f_weak, weak_prob, input['id'])
+                    self.update_weak_bank_timely(target_f_weak, target_weak_prob, input['id'])
                     # baseline
-                    loss = self.baseline_loss(t_weak_prob, f_weak,t_weak_logit)
+                    loss = self.baseline_loss(online_weak_prob, target_f_weak,online_weak_logit)
+                    # print(loss)
+                    # exit()
                     # fixmatch
+                    
+                    
+                    if cfg['var_reg']:
+                        var = torch.var(online_f_weak, dim=1)
+                        loss_var = torch.mean(var)
+                        # print(var.shape,loss_var)
+                        # exit()
+                    
+                    
+                    if cfg['global_reg'] == 1:
+                                # _,g_yw,g_ys = global_model(input)
+                            # yw= online_weak_prob
+                            g_max_p, g_hard_pseudo_label = torch.max(g_yw, dim=-1)
+                            # print(thres)
+                            # exit()
+                            # g_mask = g_max_p.ge(cfg['threshold'])
+                            g_mask = g_max_p.ge(thres)
+                            # g_mask = g_max_p.ge(thres)
+                            g_yw = g_yw[g_mask]
+                            # lable_s = torch.softmax(x_s,dim=1)
+                            # g_lable_s = lable_s[g_mask]
+                            #########################################
+                            # max_p2, hard_pseudo_label2 = torch.max(yw, dim=-1)
+                            
+                            # g_mask = g_max_p.ge(cfg['threshold'])
+                            # mask2 = max_p2.ge(thres)
+                            
+                    if cfg['add_fix']:
+                        max_p, hard_pseudo_label = torch.max(online_weak_prob, dim=-1)
+                        # mask = max_p.ge(cfg['threshold'])
+                        mask = max_p.ge(thres)
+                        embed_feat_masked = online_f_weak[mask]
+                        pred_cls = online_weak_prob[mask]
+                        # psd_label = psd_label[mask]
+                        target_l = hard_pseudo_label
+                        # print(target_.shape,x_s.shape)
+                        lable_s = online_s1_prob
+                        if cfg['global_reg'] == 1:
+                            g_lable_s = lable_s[g_mask]
+                        target_l = target_l[mask]
+                        lable_s = lable_s[mask]
+                        
+                        if cfg['global_reg'] == 1:
+                            
+                            g_target_ = g_hard_pseudo_label
+                            
+                            g_target_ = g_target_[g_mask]
+                            
+                            if g_target_.shape[0] != 0 and g_lable_s.shape[0]!= 0 :
+                                
+                                g_fix_loss = loss_fn(g_lable_s,g_target_.detach())
+                                # print(g_fix_loss)
+                                # exit()
+                                loss+=cfg['g_lambda']*g_fix_loss
+                        if target_l.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                            # continue
+                            fix_loss = loss_fn(lable_s,target_l.detach())
+                            # print(loss,cfg['lambda'])
+                            # exit()
+                            loss+=cfg['lambda']*fix_loss
+                     
+                     
+                    
+                    
+                    if cfg['var_reg']:
+                        loss += cfg['var_wt']*loss_var
+                        # print(cfg['var_wt'],'varience weight',loss_var)
+                    # print(loss)
+                    # exit()   
                     tgt_unlabeled_label = input['target']
-                    pseudo_label = torch.softmax(weak_logit.detach(), dim=-1)
+                    pseudo_label = torch.softmax(target_weak_logit.detach(), dim=-1)
                     max_probs, tgt_u = torch.max(pseudo_label, dim=-1)
                     mask = max_probs.ge(cfg['prob_threshold']).float().detach()
-                    pred_right = torch.sum((tgt_u == tgt_unlabeled_label.squeeze(1)) * mask) / torch.sum(mask)
+                    # print(tgt_u.shape,mask.shape,tgt_unlabeled_label.shape)
+                    # exit()
+                    # pred_right = torch.sum((tgt_u == tgt_unlabeled_label.squeeze(1)) * mask) / torch.sum(mask)
+                    # pred_right = torch.sum((tgt_u.detach().cpu() == tgt_unlabeled_label.detach().cpu()) * mask.detach().cpu()) / torch.sum(mask.detach().cpu())
+                    # print(pred_right)
+                    # exit()
                     if self.use_cluster_label_for_fixmatch:
-                        tgt_u = self.obtain_batch_label(t_f_weak, None)
+                        tgt_u = self.obtain_batch_label(online_f_weak, None)
                         # tgt_u = self.obtain_batch_label(target_weak_feat, None)
-                        cluster_acc = torch.sum((tgt_u == tgt_unlabeled_label.squeeze(1)) * mask) / torch.sum(mask)
+                        # cluster_acc = torch.sum((tgt_u == tgt_unlabeled_label) * mask) / torch.sum(mask)
                     else:
                         cluster_acc = torch.tensor(0)
                     mask_val = torch.sum(mask).item() / mask.shape[0]
                     self.high_ratio = mask_val
                     ###########
                     if self.fixmatch_type == 'orig':
-                        strong_aug_pred = t_strong1_logit
+                        strong_aug_pred = online_strong1_logit
                         loss_consistency = (F.cross_entropy(strong_aug_pred, tgt_u, reduction='none') * mask).mean()
                         loss += loss_consistency * self.lambda_fixmatch * 0.5
-                        strong_aug_pred = t_strong2_logit
+                        strong_aug_pred = online_strong2_logit
                         loss_consistency = (F.cross_entropy(strong_aug_pred, tgt_u, reduction='none') * mask).mean()
                         loss += loss_consistency * self.lambda_fixmatch * 0.5
                     #
                     elif self.fixmatch_type == 'class_relation':
                         #
-                        loss_1 = self.class_contrastive_loss(t_strong1_logit, tgt_u, mask)
-                        loss_2 = self.class_contrastive_loss(t_strong1_logit, tgt_u, mask)
+                        loss_1 = self.class_contrastive_loss(online_strong1_logit, tgt_u, mask)
+                        loss_2 = self.class_contrastive_loss(online_strong2_logit, tgt_u, mask)
                         loss += (loss_1 + loss_2) * self.lambda_fixmatch * 0.5
+                        # print(loss_1,loss_2)
+                        # exit()
                     else:
                         raise RuntimeError('wrong fixmatch type')
                     # #
                     # # constrastive loss
                     tgt_img_ind = input['id']
                     # all_k_strong = target_strong_prob
-                    all_k_strong = torch.cat((s1_prob, s2_prob), dim=0)
-                    all_k_weak = weak_prob
+                    all_k_strong = torch.cat((target_s1_prob, target_s2_prob), dim=0)
+                    all_k_weak = target_weak_prob
                     # weak_feat_for_backbone = online_weak_prob
-                    weak_feat_for_backbone = t_weak_prob
+                    weak_feat_for_backbone = online_weak_prob
                     k_weak_for_backbone = all_k_weak
                     # k_strong_for_backbone = all_k_strong[0:tgt_unlabeled_size]
-                    k_strong_for_backbone = s1_prob
+                    k_strong_for_backbone = target_s1_prob
                     # strong_feat_for_backbone = online_strong_prob[0:tgt_unlabeled_size]
-                    strong_feat_for_backbone = t_s1_prob
+                    strong_feat_for_backbone = online_s1_prob
                     # k_strong_2 = all_k_strong[tgt_unlabeled_size:]
-                    k_strong_2 = s2_prob
+                    k_strong_2 = target_s2_prob
                     # feat_strong_2 = online_strong_prob[tgt_unlabeled_size:]
-                    feat_strong_2 = t_s2_prob
+                    feat_strong_2 = online_s2_prob
                     if self.use_only_current_batch_for_instance:
                         # tmp_weak_negative_bank = online_weak_prob
-                        tmp_weak_negative_bank = t_weak_prob
+                        tmp_weak_negative_bank = online_weak_prob
                         tmp_strong_negative_bank = strong_feat_for_backbone
                         # neg_ind = tgt_img_ind 
                         neg_ind = tgt_img_ind    #input['ids']?
@@ -2776,7 +3215,7 @@ class Client:
                     else:
                         if self.add_current_data_for_instance:
                             # tmp_weak_negative_bank = torch.cat((self.weak_negative_bank, online_weak_prob), dim=0)
-                            tmp_weak_negative_bank = torch.cat((self.weak_negative_bank, t_weak_prob), dim=0)
+                            tmp_weak_negative_bank = torch.cat((self.weak_negative_bank, online_weak_prob), dim=0)
                             tmp_strong_negative_bank = torch.cat((self.strong_negative_bank, strong_feat_for_backbone), dim=0)
                             # neg_ind = torch.cat((self.ngative_img_ind_bank, tgt_img_ind))
                             neg_ind = torch.cat((self.ngative_img_ind_bank, tgt_img_ind))
@@ -2797,17 +3236,24 @@ class Client:
                     info_nce_loss = (info_nce_loss_1 + info_nce_loss_2 + info_nce_loss_3) / 3.0
                     #
                     loss += info_nce_loss * self.lambda_nce
-                    
+                    # print(info_nce_loss,info_nce_loss_1,info_nce_loss_2,info_nce_loss_3)
+                    # exit()
                     optimizer.zero_grad()
                     loss.backward()
                     
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                    torch.nn.utils.clip_grad_norm_(stu_model.parameters(), 1)
                     
                     optimizer.step()
-                    self.update_negative_bank(weak_prob, s1_prob, tgt_img_ind)
+                    with torch.no_grad():
+                        self.update_negative_bank(target_weak_prob, target_s1_prob, tgt_img_ind)
                     if scheduler is not None:
                         # print('scheduler step')
                         scheduler.step()
+                    self.iteration += 1
+                    #EMA updating teacher model
+                    with torch.no_grad():
+                        update_moving_average(tech_model, stu_model)
+                    
                     
         elif 'ladd' in cfg['loss_mode']:
             _,_,dataset = dataset
@@ -3122,33 +3568,50 @@ class Client:
         else:
             raise ValueError('Not valid client loss mode')
         self.optimizer_state_dict = save_optimizer_state_dict(optimizer.state_dict())
-        self.model_state_dict = save_model_state_dict(model.state_dict())
-        # if 'ladd' == cfg['loss_mode']:
-        #     self.model_state_dict = save_model_state_dict(stu_model.state_dict())
-        #     self.tech_model_state_dict = save_model_state_dict(tech_model.state_dict())
-        # else:
-        #     self.model_state_dict = save_model_state_dict(model.state_dict())
-        del optimizer
-        # del optimizer_
-        del model
+        # self.model_state_dict = save_model_state_dict(model.state_dict())
+        if 'ladd' == cfg['loss_mode']:
+            self.model_state_dict = save_model_state_dict(stu_model.state_dict())
+            self.tech_model_state_dict = save_model_state_dict(tech_model.state_dict())
+        elif 'crco' == cfg['loss_mode']:
+            self.model_state_dict = save_model_state_dict(stu_model.state_dict())
+        else:
+            self.model_state_dict = save_model_state_dict(model.state_dict())
+            del optimizer
+            # del optimizer_
+            del model
         # del init_model
         gc.collect()
         torch.cuda.empty_cache()
         # self.model_state_dict = save_model_state_dict(model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict())
         return
 
+# Function to compute the correlation matrix K
+def compute_correlation_matrix(W):
+    # Normalize W to have zero mean
+    W_centered = W - W.mean(dim=0)
+    # Compute the covariance matrix
+    covariance_matrix = torch.mm(W_centered.T, W_centered) / (W_centered.size(0) - 1)
+    # Compute the correlation matrix
+    std_dev = torch.sqrt(torch.diag(covariance_matrix))
+    correlation_matrix = covariance_matrix / torch.outer(std_dev, std_dev)
+    return correlation_matrix
 
-def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent,id,domain,fwd_pass=False,scheduler = None,client = None,global_model = None,thres=None):
+def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent,id,domain,fwd_pass=False,scheduler = None,client = None,global_model = None,thres=None,cls_ps=None,adpt_thr = None):
     loss_stack = []
     num_classes = cfg['target_size']
     avg_label_feat = torch.zeros(num_classes,256)
     model.to(cfg["device"])
     # print(fwd_pass)
     # exit()
-    
+    # print(global_model)
+    # exit()
+    print(domain)
+    # exit()
     with torch.no_grad():
         model.eval()
-        pred_label = init_psd_label_shot_icml(model,test_data_loader)
+        pred_label,updated_threshold = init_psd_label_shot_icml(model,test_data_loader,domain = domain,id = id, adpt_thr = adpt_thr,client_id=id)
+        # print(pred_label)
+        # exit()
         # if fwd_pass:
         #     pred_label = init_psd_label_shot_icml(model,test_data_loader)
         # else:
@@ -3158,11 +3621,18 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
         #     pred_label = init_psd_label_shot_icml_up(model,test_data_loader,client,id,domain)
         # #print("len dataloader:",len(dataloader))
         # print("len pred_label:",len(pred_label))
-    
+    print('threshold',thres)
+    # return None,None
+    if adpt_thr:
+        thres = updated_threshold
+        print('updated threshold',thres)
+    # return None,None
     model.train()
     epoch_idx=epoch
+    # print('starting runs okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
     # for i, input in enumerate(test_data_loader):
     for i, input in enumerate(train_data_loader):
+        # print(i)
         input = collate(input)
         input_size = input['data'].size(0)
         if input_size<=1:
@@ -3173,29 +3643,70 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
         pred_label = to_device(pred_label,cfg['device'])
         psd_label = pred_label[input['id']]
         psd_label_ = pred_label[input['id']]
-
+        
         if cfg['add_fix']==0:
-            embed_feat, pred_cls = model(input)
+            if cfg['cls_ps']:
+                cls_ps.train()
+                p,embed_feat, pred_cls = model(input)
+                adapt_feat,ps_cls = cls_ps(p)
+            else:
+                embed_feat, pred_cls = model(input)
         elif cfg['add_fix']==1 and cfg['logit_div'] ==0:
-            embed_feat, pred_cls,x_s = model(input)
+            if cfg['cls_ps']:
+                p,embed_feat, pred_cls,x_s = model(input)
+                adapt_feat,ps_cls = cls_ps(p)
+                # print(ps_cls.shape,pred_cls.shape)
+                # exit()
+            else:
+                embed_feat, pred_cls,x_s = model(input)
     
         elif cfg['add_fix']==1 and cfg['logit_div'] ==1:
             embed_feat, pred_cls,x,x_s = model(input)
             x_in = torch.softmax(x/cfg['temp'],dim =1)
-        
+        # print('applying again')
         with torch.no_grad():
-            if cfg['global_reg']:
-                _,g_yw,g_ys = model(input)
+            if cfg['global_reg'] == 1:
+                if cfg['cls_ps'] == True:
+                    _,_,g_yw,g_ys = model(input)
+                else:
+                    _,yw,ys = model(input)
+                    _,g_yw,g_ys = global_model(input)
                 g_max_p, g_hard_pseudo_label = torch.max(g_yw, dim=-1)
+                # print(thres)
+                # exit()
                 # g_mask = g_max_p.ge(cfg['threshold'])
                 g_mask = g_max_p.ge(thres)
                 g_yw = g_yw[g_mask]
+                # lable_s = torch.softmax(x_s,dim=1)
+                # g_lable_s = lable_s[g_mask]
+                #########################################
+                max_p2, hard_pseudo_label2 = torch.max(yw, dim=-1)
+                
+                # g_mask = g_max_p.ge(cfg['threshold'])
+                mask2 = max_p2.ge(thres)
+        
+        
+                
+                # lable_s = torch.softmax(x_s,dim=1)
+                
         # print(g_yw.shape)    
         # exit()
         #act_loss = sum([item['mean_norm'] for item in list(model.act_stats.values())])
         #print("psd_label:",psd_label )
         # print(embed_feat.shape)
         if cfg['var_reg']:
+            # print(embed_feat.shape)
+            # K = compute_correlation_matrix(embed_feat)
+            # # print(K,K.shape)
+            # # Compute the Frobenius norm of K
+            # frobenius_norm = torch.norm(K, p='fro')
+            # # print(frobenius_norm)
+            # # Compute the loss function LFedDecorr
+            # d_ = K.shape
+            # loss_var = 1/d_[0]**2 * frobenius_norm ** 2
+            # print(loss_var)
+            # exit()
+            # var = torch.var(embed_feat, dim=0)
             var = torch.var(embed_feat, dim=1)
             loss_var = torch.mean(var)
             # print(var.shape,loss_var)
@@ -3217,8 +3728,23 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
         #    loss = ent_loss + 1.0 * psd_loss
         #else:
         loss = - reg_loss + ent_loss + 0.5*psd_loss
+        # loss = 0
+         #need to re aadd
+        if cfg['cls_ps']:
+            class_psd_loss = -torch.sum(torch.log(ps_cls) * psd_label, dim=1).mean()
+            loss+=1*class_psd_loss
+            # print(class_psd_loss)
+            # exit()
         if cfg['var_reg']:
+            print('adding var loss')
             loss += cfg['var_wt']*loss_var
+            # print(cfg['var_wt'],'varience weight',loss_var)
+        if cfg['FedProx']:
+                        # print('local update frdprox')
+            proximal_term = 0.0
+            for w, w_t in zip(model.parameters(), global_model.parameters()):
+                proximal_term += (w - w_t.detach()).norm(2)
+            loss+= (cfg['mu']/ 2) * proximal_term
         # print(loss)
         # exit()
         unique_labels = torch.unique(psd_label_).cpu().numpy() 
@@ -3265,62 +3791,153 @@ def shot_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg
             pos_m = torch.diag(similarity_mat)
             pos_neg_m = torch.sum(similarity_mat,axis = 1)
             nce_loss = -1.0*torch.sum(torch.log(pos_m/pos_neg_m))
-            print('nce_loss',nce_loss)
+            # print('nce_loss',nce_loss)
             loss += cfg['gamma']*nce_loss
             #print("reg_loss:",reg_loss,"ent_loss:",ent_loss,"psd_loss:",psd_loss,"nce_loss:",nce_loss)
         if cfg['add_fix'] ==1:
             # target_prob,target_= torch.max(dym_label, dim=-1)
             # target_ = dym_label
-            target_ = hard_pseudo_label
+            target_l = hard_pseudo_label
             # print(target_.shape,x_s.shape)
             lable_s = torch.softmax(x_s,dim=1)
-            target_ = target_[mask]
-            lable_s = lable_s[mask]
-            # print(target_.shape,lable_s.shape)
-            if target_.shape[0] != 0 and lable_s.shape[0]!= 0 :
-                # continue
-                fix_loss = loss_fn(lable_s,target_.detach())
-                # print(loss)
-                loss+=cfg['lambda']*fix_loss
-        if cfg['global_reg']:
-            # target_prob,target_= torch.max(dym_label, dim=-1)
-            # target_ = dym_label
-            g_target_ = g_hard_pseudo_label
-            # print(target_.shape,x_s.shape)
+            target_l = target_l[mask]
             # lable_s = torch.softmax(x_s,dim=1)
-            g_target_ = g_target_[mask]
-            # lable_s = lable_s[mask]
+            if cfg['global_reg'] == 1:
+                g_lable_s = lable_s[g_mask]
+            lable_s = lable_s[mask]
+            # lable_s2 = lable_s[mask2]
             # print(target_.shape,lable_s.shape)
-            if target_.shape[0] != 0 and lable_s.shape[0]!= 0 :
-                # continue
-                g_fix_loss = loss_fn(lable_s,g_target_.detach())
-                # print(g_fix_loss)
+            # if target_.shape[0] != 0 and lable_s.shape[0]!= 0 :
+            #     # continue
+            #     fix_loss = loss_fn(lable_s,target_.detach())
+            #     # print(loss)
+            #     loss+=cfg['lambda']*fix_loss
+                
+            if cfg['global_reg'] == 1:
+                # target_prob,target_= torch.max(dym_label, dim=-1)
+                # target_ = dym_label
+                # lable_s = torch.softmax(x_s,dim=1)
+                # g_lable_s = lable_s[g_mask]
+                g_target_ = g_hard_pseudo_label
+                target_ = hard_pseudo_label
+                # print(target_.shape,x_s.shape)
+                # g_lable_s = torch.softmax(g_ys,dim=1)
+                # g_target_ = g_target_[mask]
+                g_target_ = g_target_[g_mask]
+                # g_lable_s = g_lable_s[mask]
+                # target_ = target_[mask]
+                target_ = target_[g_mask]
+                yw = yw[mask2]
+                l_yw = pred_cls
+                # hg = -torch.sum(torch.log(g_yw.detach())*g_yw.detach(), dim=1).mean()
+                # hk = -torch.sum(torch.log(l_yw.detach())*l_yw.detach(), dim=1).mean()
+                # # print('hk',hk,'hg',hg)
+                # # exit()
+                # wl = 2*(1/(hk+1e-8))/((1/(hk+1e-8)+(1/(hg+1e-8)))+1e-8)
+                # wg = 2*(1/(hg+1e-8))/((1/(hk+1e-8)+(1/(hg+1e-8)))+1e-8)
+                # print('wl',wl,'wg',wg)
                 # exit()
-                loss+=cfg['g_lambda']*g_fix_loss
+                # print(target_.shape,lable_s.shape)
+                if g_target_.shape[0] != 0 and g_lable_s.shape[0]!= 0 :
+                    # continue
+                    # g_fix_loss = loss_fn(g_lable_s,g_target_.detach())
+                    # g_fix_loss = loss_fn(g_lable_s,target_.detach())
+                    # g_fix_loss = loss_fn(lable_s,g_target_.detach())
+                    g_fix_loss = loss_fn(g_lable_s,g_target_.detach())
+                    # print(g_fix_loss)
+                    # exit()
+                    loss+=cfg['g_lambda']*g_fix_loss
+                    # loss+=wg*g_fix_loss
+                #######################################
+                # target_2 = hard_pseudo_label2
+                # target_ = hard_pseudo_label
+                
+                # target_2 = target_2[mask]
+                
+                # target_ = target_[mask]
             
-     
+                # if target_2.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                    
+                #     fix_loss2= loss_fn(lable_s,target_2.detach())
+                
+                #     loss+=1*fix_loss2
+                # print(fix_loss2)
+                ################################################
+                # target_2 = hard_pseudo_label2
+                # target_ = hard_pseudo_label
+                
+                # target_2 = target_2[mask2]
+                
+                # target_ = target_[mask2]
+            
+                # if target_2.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                    
+                #     fix_loss2= loss_fn(lable_s2,target_2.detach())
+                
+                #     loss+=1*fix_loss2
+            if target_l.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                # continue
+                fix_loss = loss_fn(lable_s,target_l.detach())
+                # print(fix_loss)
+                # exit()
+                loss+=cfg['lambda']*fix_loss
+                # loss+=wl*fix_loss
+        
+            
+        # print(loss)
+        # exit()
+        
+                        
         optimizer.zero_grad()
+        grad_sum = 0
+        # for k, v in model.backbone_layer.named_parameters():
+        #             # print(k)
+        #             if "bn" in k:
+        #                 pass
+        #             else:
+        #                 # G = v.grad
+        #                 # grad_sum+=G.sum()
+        #                 print(v.grad)
+        # print(grad_sum)
+        # exit()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        # for param in model.parameters():
+        #     print(param.device)
+        # optimizer.to(cfg['device'])
         optimizer.step()
+        # grad_sum = 0
+        # for k, v in model.backbone_layer.named_parameters():
+        #             # print(k)
+        #             if "bn" in k:
+        #                 pass
+        #             else:
+        #                 G = v.grad[0]
+        #                 grad_sum+=G.sum()
+        # print(grad_sum)
+        # exit()
         if scheduler is not None:
             # print('scheduler step')
             scheduler.step()
             # print('lr at client
     with torch.no_grad():
         loss_stack.append(loss.cpu().item())
-        cent = get_final_centroids(model,test_data_loader,pred_label)
+        if cfg['cls_ps']:
+            cent = None
+        else:
+            # cent = get_final_centroids(model,test_data_loader,pred_label)
+            cent = None
         #print("cent here:",cent.shape)
     
        
     train_loss = np.mean(loss_stack)
 
-    return train_loss,cent
+    return train_loss,thres
 
 
 
 
-def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent,fwd_pass=False,scheduler = None):
+def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent,id,domain,fwd_pass=False,scheduler = None,global_model= None,thres = None, adpt_thr = None):
     loss_stack = []
     model.to(cfg["device"])
     # model = to_device(model, cfg['device'])
@@ -3331,7 +3948,39 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         
      
     # print(glob_multi_feat_cent)
-    
+    if adpt_thr:
+        print('adapting threshold')
+        ent = torch.sum(-all_cls_out * torch.log(all_cls_out + 1e-5), dim=1)
+        tag = cfg['model_tag']
+        # np.save(f'./output/Entropy_client {id}:{domain}_{tag}.npy',ent)
+    # return None, None
+        entropy_mean = ent.mean().item()
+        entropy_median = ent.median().item()
+        entropy_std = ent.std().item()
+        entropy_iqr = np.percentile(ent, 75) - np.percentile(ent, 25)
+        # skewness_measure = (entropy_mean - entropy_median) / entropy_iqr
+        # skewness_measure = (entropy_mean - entropy_median) / entropy_std
+        mean_median_diff = entropy_mean - entropy_median
+        # new_threshold = 0.6+((skewness_measure+1)*(0.99-0.6)/2)
+        # Min-max scaling with clipping
+        # skewness_clipped = max(-0.1, min(skewness_measure, 0.15))  # Clip skewness between -1.5 and 1.5
+        # # normalized_skewness = 0.7 + ((skewness_clipped + 1) * (0.95 - 0.7)) / 2  # Map to [0.7, 0.95]
+        # new_threshold = 0.8+skewness_clipped
+        ##########################################################
+        # Calculate Fisher's skewness
+        n = len(ent)
+        third_moment = ((ent - entropy_mean) ** 3).mean().item()
+        second_moment = ((ent - entropy_mean) ** 2).mean().item()
+        # fisher_skewness = third_moment / (second_moment ** 1.5)
+        fisher_skewness = 3*(entropy_mean - entropy_median) / entropy_std
+        
+        # Clipping Fisher's skewness to a set range for stability
+        skewness_clipped = max(-0.1, min(fisher_skewness, 0.15))  # Clip between -0.1 and 0.15
+
+        # Adaptive threshold using Fisher's skewness
+        thres = 0.8 + skewness_clipped
+        print('adapted _thr', thres)
+    # exit()
     model.train()
     epoch_idx=epoch
     grad_bank = {}
@@ -3381,7 +4030,34 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
                 init_pred_cls = torch.softmax(init_pred_cls,dim=1)
                 # print(torch.sum(init_pred_cls,dim=1))
                 # exit()
+        with torch.no_grad():
+            if cfg['global_reg'] == 1:
+                if cfg['cls_ps'] == True:
+                    _,_,g_yw,g_ys = model(input)
+                else:
+                    _,yw,ys = model(input)
+                    _,g_yw,g_ys = global_model(input)
+                g_max_p, g_hard_pseudo_label = torch.max(g_yw, dim=-1)
+                # print(thres)
+                # exit()
+                # g_mask = g_max_p.ge(cfg['threshold'])
+                g_mask = g_max_p.ge(thres)
+                g_yw = g_yw[g_mask]
+                # lable_s = torch.softmax(x_s,dim=1)
+                # g_lable_s = lable_s[g_mask]
+                #########################################
+                max_p2, hard_pseudo_label2 = torch.max(yw, dim=-1)
                 
+                # g_mask = g_max_p.ge(cfg['threshold'])
+                mask2 = max_p2.ge(thres)
+                
+                
+        if cfg['var_reg']:
+            var = torch.var(embed_feat, dim=1)
+            loss_var = torch.mean(var)
+            
+
+                # print(thres) 
         # input = to_device(input, 'cpu')
         # act_loss = sum([item['mean_norm'] for item in list(model.act_stats.values())])
         ##########################################
@@ -3448,6 +4124,9 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         # lr_scheduler(optimizer, iter_idx, iter_max)
         # optimizer.zero_grad()
         #==================================================================#
+        if cfg['var_reg']:
+            loss += cfg['var_wt']*loss_var
+            # print('loss varience',loss_var)
         # print(cent.shape,avg_cent.shape)
         #print("cfg_avg_cent:",cfg['avg_cent'])
         # if cfg['avg_cent'] and avg_cent is not None:
@@ -3498,7 +4177,8 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         max_p, hard_pseudo_label = torch.max(pred_cls, dim=-1)
         # print(cfg['threshold'])
         # exit()
-        mask = max_p.ge(cfg['threshold'])
+        # mask = max_p.ge(cfg['threshold'])
+        mask = max_p.ge(thres)
         embed_feat_masked = embed_feat[mask]
         pred_cls = pred_cls[mask]
         psd_label = psd_label[mask]
@@ -3684,28 +4364,91 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
         if cfg['add_fix'] ==1:
             # target_prob,target_= torch.max(dym_label, dim=-1)
             # target_ = dym_label
-            target_ = hard_pseudo_label
+            target_l = hard_pseudo_label
             # print(target_.shape,x_s.shape)
             lable_s = torch.softmax(x_s,dim=1)
-            target_ = target_[mask]
+            target_l = target_l[mask]
+            # lable_s = torch.softmax(x_s,dim=1)
+            if cfg['global_reg'] == 1:
+                g_lable_s = lable_s[g_mask]
             lable_s = lable_s[mask]
+            # lable_s2 = lable_s[mask2]
             # print(target_.shape,lable_s.shape)
-            if target_.shape[0] != 0 and lable_s.shape[0]!= 0 :
-                # continue
-                fix_loss = loss_fn(lable_s,target_.detach())
-                # print(loss)
-                loss+=cfg['lambda']*fix_loss
-            # exit()
-            ## tbd for testing
-            # fix_loss_symmetric  = - torch.sum(torch.log(target_prob) * label_s, dim=1).mean() - torch.sum(torch.log(label_s) * target_prob, dim=1).mean()
-            ##
-            # fix_loss = loss_fn(x_s,target_.detach())
-            
-                # print('fix-loss',fix_loss)
+            # if target_.shape[0] != 0 and lable_s.shape[0]!= 0 :
+            #     # continue
+            #     fix_loss = loss_fn(lable_s,target_.detach())
+            #     # print(loss)
+            #     loss+=cfg['lambda']*fix_loss
+                
+            if cfg['global_reg'] == 1:
+                # target_prob,target_= torch.max(dym_label, dim=-1)
+                # target_ = dym_label
+                # lable_s = torch.softmax(x_s,dim=1)
+                # g_lable_s = lable_s[g_mask]
+                g_target_ = g_hard_pseudo_label
+                target_ = hard_pseudo_label
+                # print(target_.shape,x_s.shape)
+                # g_lable_s = torch.softmax(g_ys,dim=1)
+                # g_target_ = g_target_[mask]
+                g_target_ = g_target_[g_mask]
+                # g_lable_s = g_lable_s[mask]
+                # target_ = target_[mask]
+                target_ = target_[g_mask]
+                yw = yw[mask2]
+                l_yw = pred_cls
+                # hg = -torch.sum(torch.log(g_yw.detach())*g_yw.detach(), dim=1).mean()
+                # hk = -torch.sum(torch.log(l_yw.detach())*l_yw.detach(), dim=1).mean()
+                # # print('hk',hk,'hg',hg)
+                # # exit()
+                # wl = 2*(1/(hk+1e-8))/((1/(hk+1e-8)+(1/(hg+1e-8)))+1e-8)
+                # wg = 2*(1/(hg+1e-8))/((1/(hk+1e-8)+(1/(hg+1e-8)))+1e-8)
+                # print('wl',wl,'wg',wg)
                 # exit()
-            # fix_loss = loss_fn(label_s,target_.detach())
-            # print(fix_loss)
-        # print(loss)
+                # print(target_.shape,lable_s.shape)
+                if g_target_.shape[0] != 0 and g_lable_s.shape[0]!= 0 :
+                    # continue
+                    # g_fix_loss = loss_fn(g_lable_s,g_target_.detach())
+                    # g_fix_loss = loss_fn(g_lable_s,target_.detach())
+                    # g_fix_loss = loss_fn(lable_s,g_target_.detach())
+                    g_fix_loss = loss_fn(g_lable_s,g_target_.detach())
+                    # print('loss_g_fix',g_fix_loss)
+                    # exit()
+                    loss+=cfg['g_lambda']*g_fix_loss
+                    # loss+=wg*g_fix_loss
+                #######################################
+                # target_2 = hard_pseudo_label2
+                # target_ = hard_pseudo_label
+                
+                # target_2 = target_2[mask]
+                
+                # target_ = target_[mask]
+            
+                # if target_2.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                    
+                #     fix_loss2= loss_fn(lable_s,target_2.detach())
+                
+                #     loss+=1*fix_loss2
+                # print(fix_loss2)
+                ################################################
+                # target_2 = hard_pseudo_label2
+                # target_ = hard_pseudo_label
+                
+                # target_2 = target_2[mask2]
+                
+                # target_ = target_[mask2]
+            
+                # if target_2.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                    
+                #     fix_loss2= loss_fn(lable_s2,target_2.detach())
+                
+                #     loss+=1*fix_loss2
+            if target_l.shape[0] != 0 and lable_s.shape[0]!= 0 :
+                # continue
+                fix_loss = loss_fn(lable_s,target_l.detach())
+                # print('loss l_fix',fix_loss)
+                # exit()
+                loss+=cfg['lambda']*fix_loss
+                
         if cfg['logit_div']==1:
             # print('div logit')
             kl_loss = torch.nn.KLDivLoss(reduction="mean")
@@ -3774,7 +4517,7 @@ def bmd_train(model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_
     # print(torch.cuda.memory_summary(device=cfg['device']))
     # exit()
     # return train_loss,clnt_cent,variance_clnt_cent
-    return train_loss
+    return train_loss, thres
 
 def crco_train(model,tech_model,train_data_loader,test_data_loader,optimizer,epoch,cent,avg_cent,fwd_pass=False,scheduler = None):
     loss_stack = []
@@ -4272,3 +5015,20 @@ def baseline_loss(score, feat, batch_metrics, logits):
             return (loss_aad_pos + loss_aad_neg * tmp_lambda) * cfg['lambda_aad']
         else:
             raise RuntimeError('wrong type of baseline')
+class EMA():
+    def __init__(self, beta):
+        super().__init__()
+        self.beta = beta
+
+    def update_average(self, old, new):
+        if old is None:
+            return new
+        return old * self.beta + (1 - self.beta) * new
+
+
+def update_moving_average( ma_model, current_model):
+    # beta = 0.99
+    ema_updater = EMA(beta=0.99)
+    for current_params, ma_params in zip(current_model.parameters(), ma_model.parameters()):
+        old_weight, up_weight = ma_params.data, current_params.data
+        ma_params.data = ema_updater.update_average(old_weight, up_weight)

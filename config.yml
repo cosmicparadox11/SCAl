@@ -18,7 +18,7 @@ data_name_unsup : 'office31'
 model_name: resnet18
 # experiment
 num_supervised_clients: 5
-num_workers: 4
+num_workers: 0
 init_seed: 0
 num_experiments: 1
 log_interval: 0.25
@@ -99,37 +99,52 @@ cluster : 0
 save_epoch : 0
 
 #####crco
-# baseline_type : 'IM' 
-# lambda_ent : 1.0
-# lambda_div : 1.0 
-# lambda_aad : 1.0  
-# fix_classifier : True 
-# prob_threshold : 0.95 
-# feat_dim : 256 
-# pseudo_update_interval : 100000  
-# threshold : 0.0
-# num_k : 4  
-# num_m : 3  
-# lambda_near : 0.0 
-# lambda_fixmatch : 0.0  
-# fixmatch_start : 0  
-# fixmatch_type : 'class_relation' 
-# use_cluster_label_for_fixmatch : False 
-# lambda_fixmatch_temp : 0.07 
-# bank_size : 512  
-# lambda_nce : 1.0 
-# lambda_temp : 0.07 
-# non_diag_alpha : 1.0  
-# add_current_data_for_instance : False 
-# use_only_current_batch_for_instance : False  
-# max_iters : 15000  
-# beta : 0.0 
+baseline_type : 'IM' 
+lambda_ent : 1.0
+lambda_div : 1.0 
+lambda_aad : 1.0  
+fix_classifier : True 
+prob_threshold : 0.95 
+feat_dim : 256 
+pseudo_update_interval : 100000  
+threshold_crco : 0.0
+num_k : 4  
+num_m : 3  
+lambda_near : 0.0 
+lambda_fixmatch : 0.0  
+fixmatch_start : 0  
+fixmatch_type : 'class_relation' 
+use_cluster_label_for_fixmatch : False 
+lambda_fixmatch_temp : 0.07 
+bank_size : 512  
+lambda_nce : 1.0 
+lambda_temp : 0.07 
+non_diag_alpha : 1.0  
+add_current_data_for_instance : False 
+use_only_current_batch_for_instance : False  
+max_iters : 15000  
+beta : 0.0 
+#################################################
 #add mix_up loss
 new_mix : 0
 lam : 0.5
 vit_bn : False
-var_reg : True
-global_reg : False
+var_reg : False
+global_reg : 0
 g_lambda : 1.0
 var_wt : 0.1
 clip_t : 0
+cls_ps : False
+svd_plot : False
+run_crco : 0
+GD : 0
+den_plot_mode : FedSFDAsingle_combined
+add_ln : 0
+plt_hist : 0
+adpt_thr : 0
+labels_count : 0
+FedProx : 0
+mu : 0.01
+shot3x : 0
+add3x : 0
+only_bn : 0 

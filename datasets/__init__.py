@@ -12,4 +12,5 @@ from .syn32 import SYN32
 from .visda import VisDA_source ,VisDA_target
 from .office_caltech import OfficeCaltech,OfficeCaltech_Full
 from .domain_net import    DomainNet ,DomainNet_Full
-__all__ = ('MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100', 'SVHN', 'STL10','USPS','office31','OfficeHome','MNIST_M', 'SYN32','VisDA','OfficeCaltech','DomainNet')
+from .domain_net_s import    DomainNetS ,DomainNetS_Full
+__all__ = ('MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100', 'SVHN', 'STL10','USPS','office31','OfficeHome','MNIST_M', 'SYN32','VisDA','OfficeCaltech','DomainNet','DomainNetS' ,'DomainNetS_Full')

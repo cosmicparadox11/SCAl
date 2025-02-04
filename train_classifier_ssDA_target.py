@@ -37,7 +37,7 @@ def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     cfg['unsup_list'] = cfg['unsup_doms'].split('-')
-    print(cfg['unsup_list'])
+    # print(cfg['unsup_list'])
     exp_num = cfg['control_name'].split('_')[0]
     if cfg['domain_s'] in ['amazon','dslr','webcam']:
         cfg['data_name'] = 'office31'
@@ -213,7 +213,7 @@ def runExperiment():
         # print(len(data_split_unsup))
         ####
         data_split_unsup = {}
-        print(split_len)
+        # print(split_len)
         for j,(domain_id,dataset_unsup) in enumerate(client_dataset_unsup.items()):
             print(f'domain id :{domain_id},j:{j}')
             data_split_unsup[domain_id] = split_class_dataset_DA(dataset_unsup,cfg['data_split_mode'],split_len[j])
@@ -289,7 +289,7 @@ def runExperiment():
             client,supervised_clients  = make_client_DA(model, data_split_sup,data_split_unsup,split_len)
             logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
     elif cfg['resume_mode_target'] == 1:
-        print('resume target')
+        print('resume target checkpoint')
         # exit()
         result = resume_DA(cfg['model_tag'])
     
@@ -332,8 +332,9 @@ def runExperiment():
     cfg['global']['num_epochs'] = cfg['cycles']  
     mode = cfg['loss_mode']
     # print(model)
-    print(last_epoch)
+    print('starting epoch',last_epoch)
     # exit()
+    best_accu = 0
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         if mode == 'sim-ft-fix' or mode == 'sup-ft-fix':
             # print('entered fix-mix',epoch)
@@ -346,7 +347,7 @@ def runExperiment():
                 # print('entered fix-mix',epoch)
                 cfg['loss_mode'] = 'alt-fix_'
                 # cfg['loss_mode'] = 'fix-mix'
-        print(cfg['loss_mode'])
+        print('loss_mode',cfg['loss_mode'])
         # if epoch == 1 and cfg['cluster'] == 1 :
             # get_clusters(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode,scheduler)
         #     # server.cluster(client,model)
@@ -357,16 +358,16 @@ def runExperiment():
         #     # model.load_state_dict(server.model_state_dict)
         #     #====#
         #     test_model.load_state_dict(server.model_state_dict)
-            # print(test_model.feat_embed_layer.state_dict())
-            # exit()
-            #====#
-            # test_DA(data_loader_sup['test'], test_model, metric, logger, epoch=0,sup=True)
-            # for domain_id,data_loader_unsup_ in data_loader_unsup.items():
-            #     # print(data_loader_unsup_)
-            #     domain = cfg['unsup_list'][domain_id]
-            #     print(domain,domain_id)
-            #     test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch=0,domain=domain)
-            # exit()
+        #     # print(test_model.feat_embed_layer.state_dict())
+        #     # # exit()
+        #     # #====#
+        #     test_DA(data_loader_sup['test'], test_model, metric, logger, epoch=0,sup=True)
+        #     for domain_id,data_loader_unsup_ in data_loader_unsup.items():
+        #         # print(data_loader_unsup_)
+        #         domain = cfg['unsup_list'][domain_id]
+        #         print(domain,domain_id)
+        #         test_DA(data_loader_unsup_['test'], test_model, metric, logger, epoch=0,domain=domain)
+        #     exit()
         # train_client(client_dataset_sup['train'], client_dataset_unsup['train'], server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         # train_client_multi(client_dataset_sup['train'], client_dataset_unsup, server, client, supervised_clients, optimizer, metric, logger, epoch,mode)
         # exit()
@@ -404,6 +405,7 @@ def runExperiment():
         elif cfg['cluster'] == 1:
             server.update_cluster(client)
         else:
+            print('updating server')
             server.update(client)
         # scheduler.step()
 
@@ -419,6 +421,7 @@ def runExperiment():
         
         # test_DA(data_loader_sup['test'], test_model, metric, logger, epoch,sup=True)
         if cfg['client_test'] and epoch%1== 0:
+        # if cfg['client_test'] and epoch>12:
             
             print('testing on client models')
             # valid_client = [client[i] for i in range(len(client)) if client[i].active]
@@ -468,7 +471,7 @@ def runExperiment():
                         domain_loss[domain]+=avg_loss
                         domain_count[domain]+=1
                         logger.reset()
-            print(domain_accu)
+            print('domain wise accuracy:',domain_accu)
             for k ,v in domain_count.items():
                 print('domian',k)
                 domain_accu[k]/=v
@@ -523,6 +526,8 @@ def runExperiment():
         print(logger.write(tag, metric.metric_name['test']))
         logger.safe(False)
         server.deac_client(client)
+        
+            
         # print(logger.mean[f'{tag}/Accuracy'])
         # print(logger.write(tag, metric.metric_name['test'])
         # result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
@@ -546,10 +551,14 @@ def runExperiment():
             # if epoch%1==0:
             print('saving_source')
             save(result, './output/model/source/{}_checkpoint.pt'.format(cfg['model_tag']))
-            if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-                metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-                shutil.copy('./output/model/source/{}_checkpoint.pt'.format(cfg['model_tag']),
-                            './output/model/source/{}_best.pt'.format(cfg['model_tag']))
+            if avg_accuracy >= best_accu:
+                best_accu = avg_accuracy
+                shutil.copy('./output/model/target/{}_checkpoint.pt'.format(cfg['model_tag']),
+                                './output/model/target/{}_best.pt'.format(cfg['model_tag']))
+            # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+            #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+            #     shutil.copy('./output/model/source/{}_checkpoint.pt'.format(cfg['model_tag']),
+            #                 './output/model/source/{}_best.pt'.format(cfg['model_tag']))
             
         else :
             result = {'cfg': cfg, 'epoch': epoch + 1, 'server': server, 'client': client,
@@ -566,10 +575,15 @@ def runExperiment():
                 save(result, './output/model/target/{}_checkpoint.pt'.format(cfg['model_tag']))
                 if cfg['save_epoch'] == 1:
                     save(result, './output/model/target/{}_checkpoint{}.pt'.format(cfg['model_tag'],epoch))
-                if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-                    metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+                if avg_accuracy >= best_accu:
+                    print('best_accuracy')
+                    best_accu = avg_accuracy
                     shutil.copy('./output/model/target/{}_checkpoint.pt'.format(cfg['model_tag']),
-                                './output/model/target/{}_best.pt'.format(cfg['model_tag']))
+                                    './output/model/target/{}_best.pt'.format(cfg['model_tag']))
+                # if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
+                #     metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+                #     shutil.copy('./output/model/target/{}_checkpoint.pt'.format(cfg['model_tag']),
+                #                 './output/model/target/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
         gc.collect()
         torch.cuda.empty_cache()
@@ -1121,7 +1135,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
                 print('Error:Undefined mode')
             domains=[]
             # cfg['loss_mode'] = 'fix-mix'
-            print(cfg['loss_mode'])
+            print('running loss_ mode under:',cfg['loss_mode'])
             num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
             # inc_seed = 0
             # while(True):
@@ -1138,7 +1152,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
         
             ACL=set(torch.arange(cfg['num_clients']).tolist())
             ACL = list(ACL-set(supervised_clients))
-            print(ACL)
+            # print(ACL)
             # ran_CL = set(torch.randperm(cfg['num_clients']).tolist())
             # ran_CL = [ran_CL-set(supervised_clients)]
             # client_id = list(set(selected_clnts)-set(supervised_clients))
@@ -1147,7 +1161,7 @@ def train_client_multi(client_dataset_sup, client_dataset_unsup, server, client,
             # client_id = np.random.choice(np.array(ACL),num_active_clients)
             # print(client_id)
             client_id = random.sample(ACL,num_active_clients)
-            print(client_id)
+            # print(client_id)
             # client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
             for i in range(num_active_clients):
                 client[client_id[i]].active = True

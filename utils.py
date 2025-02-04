@@ -137,7 +137,7 @@ def process_control():
     # data_shape = {'MNIST': [1, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
     #               'SVHN': [3, 32, 32]}
     data_shape = {'MNIST': [3, 28, 28],'MNIST_M': [3, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
-                  'SVHN': [3, 32, 32],'USPS':[3,16,16],'SYN32': [3, 32, 32], 'office31':[3,1000,1000],'OfficeCaltech' :[3,1000,1000], 'OfficeHome': [3, 224, 224],'DomainNet': [3, 224, 224],'VisDA': [3, 224, 224], 'amazon':[3,300,300],'webcam':[3,477,477]}
+                  'SVHN': [3, 32, 32],'USPS':[3,16,16],'SYN32': [3, 32, 32], 'office31':[3,1000,1000],'OfficeCaltech' :[3,1000,1000], 'OfficeHome': [3, 224, 224],'DomainNet': [3, 224, 224],'DomainNetS': [3, 224, 224],'VisDA': [3, 224, 224], 'amazon':[3,300,300],'webcam':[3,477,477]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [32, 64]}
     cfg['lenet'] = {'hidden_size': [20, 50]}
@@ -170,7 +170,7 @@ def process_control():
         cfg['server']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][1])))
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
-        cfg['client']['batch_size'] = {'train': 64, 'test': 32}
+        cfg['client']['batch_size'] = {'train': 32, 'test': 64}
         cfg['client']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][0])))
         cfg['local'] = {}
         cfg['local']['optimizer_name'] = 'SGD'
@@ -179,7 +179,7 @@ def process_control():
         cfg['local']['weight_decay'] = 5e-4
         cfg['local']['nesterov'] = True
         cfg['global'] = {}
-        cfg['global']['batch_size'] = {'train': 64, 'test': 32}
+        cfg['global']['batch_size'] = {'train': 32, 'test': 64}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
         cfg['global']['num_epochs'] = 150
         cfg['global']['optimizer_name'] = 'SGD'
@@ -340,7 +340,10 @@ def resume_DA(model_tag, load_tag='checkpoint',mode = 'target', verbose=True):
 # def resume(model_tag, load_tag='best', verbose=True):
     if os.path.exists('./output/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag)):
         result = load('./output/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag))
+    # if os.path.exists('./output_OH/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag)):
+    #     result = load('./output_OH/model/{}/{}_{}.pt'.format(mode,model_tag, load_tag))
     else:
+        
         print('Not exists model tag: {}, start from scratch'.format(model_tag))
         from datetime import datetime
         from logger import Logger

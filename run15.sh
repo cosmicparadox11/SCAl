@@ -7,4 +7,4 @@ python train_classifier_ssDA_target.py --domain_s 'realworld' --unsup_doms 'prod
 rsync -arv ./ test@10.24.40.92:/home/test/Yashwanth/semifl
 
 
-python train_classifier_ssDA_target.py --domain_s 'art' --unsup_doms 'product-clipart-realworld'  --model_name resnet50 --d_mode new --device cuda:0  --var_lr 0.03  --scheduler_name  'CosineAnnealingLR' --cycles 40  --control_name "1080011112_sup-ft-fix_15_0.3_iid_5-5_0.07_1" --resume_mode 1  --init_seed 2020 --avg_cent 0  --gamma 1 --temp 12 --run_shot 0  --par 1 --tag_ "2020_art_0.03_resnet50_666_sup-ft-fix"  --client_test 1 --add_fix 1
+python train_classifier_ssDA_target.py --domain_s 'art' --unsup_doms 'product-clipart-realworld'  --model_name resnet50 --d_mode new --device cuda:0  --var_lr 0.03  --scheduler_name  'CosineAnnealingLR' --cycles 40  --control_name "1080011112_sup-ft-fix_15_0.3_iid_5-5_0.07_1" --resume_mode 1  --init_seed 2020 --avg_cent 0  --gamma 1 --temp 12 --run_shot 0  --par 1 --tag_ "2020_art_0.03_resnet50_666_sup-ft-fix"  --client_test 1 --add_fix 1 --backbone_arch vit-small 

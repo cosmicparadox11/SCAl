@@ -48,7 +48,7 @@ def main():
     #     cfg['data_name_unsup'] == 'VisDA'
     #     cfg['domain_u'] = 'target'
     for i in range(cfg['num_experiments']):
-        if cfg['data_name'] in ['office31', 'OfficeHome','OfficeCaltech','DomainNet']:
+        if cfg['data_name'] in ['office31', 'OfficeHome','OfficeCaltech','DomainNet','DomainNetS']:
             model_tag_list = [str(seeds[i]), cfg['domain_s'],str(cfg['var_lr']), cfg['model_name'],exp_num,exp_name]
         else:
             model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'],exp_num,exp_name]

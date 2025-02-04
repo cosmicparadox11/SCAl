@@ -81,8 +81,8 @@ def runExperiment():
     #     cfg['data_name_unsup'] == 'VisDA'
     #     cfg['domain_u'] = 'target'
     client_dataset_sup = fetch_dataset(cfg['data_name'],domain=cfg['domain_s'])
-    # print(len(client_dataset_sup['train']),client_dataset_sup['train'].transform)
-    # print(len(client_dataset_sup['test']),client_dataset_sup['test'].transform)
+    print(len(client_dataset_sup['train']),client_dataset_sup['train'].transform)
+    print(len(client_dataset_sup['test']),client_dataset_sup['test'].transform)
     # exit()
     # print(cfg['data_name_unsup'])
     # exit()

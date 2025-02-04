@@ -37,7 +37,7 @@ def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     cfg['unsup_list'] = cfg['unsup_doms'].split('-')
-    print(cfg['unsup_list'])
+    # print('list of unsupervised domains',cfg['unsup_list'])
     exp_num = cfg['control_name'].split('_')[0]
     # if cfg['domain_s'] in ['amazon','dslr','webcam']:
     #     cfg['data_name'] = 'office31'
@@ -82,7 +82,7 @@ def runExperiment():
     for i ,domain in enumerate(cfg['unsup_list']):
         # print(i,domain)
         print('fetching unsupervised domains')
-        if cfg['data_name_unsup'] == 'DomainNet':
+        if cfg['data_name_unsup'] == 'DomainNet' or cfg['data_name_unsup'] == 'DomainNetS':
             # client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
             client_dataset_unsup[i] = fetch_dataset_full_test(cfg['data_name_unsup'],domain=domain)
         # if domain in ['MNIST','USPS','SVHN','MNIST_M', 'SYN32']:
@@ -125,8 +125,10 @@ def runExperiment():
     data_loader_unsup = {}
     for domain_id,dataset_unsup in client_dataset_unsup.items():
         # domain = cfg['unsup_list'][domain_id]
+        # print(domain_id)
         data_loader_unsup[domain_id] = make_data_loader_DA(dataset_unsup, 'global')
     ####
+    # exit()
     # print(cfg)
     # model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     if cfg['world_size']==1:
@@ -252,6 +254,7 @@ def runExperiment():
         # result = resume_DA(tag_,'checkpoingt')
         # result = resume(tag_,'best')
         # result = resume(tag_,'checkpoint')
+        print('normal resume')
         result = resume(tag_,pick)
         # import pickle
         # path = "/home/sampathkoti/Downloads/R-50-GN.pkl"
@@ -697,7 +700,7 @@ def make_client_DA(model, data_split_sup,data_split_unsup,split_len=None):
                 client[unsup_client_id[i]].domain = domain_
                 client[unsup_client_id[i]].domain_id = j
                 # client[client_id[i]].domian_id = j
-                # print(len(data_split_unsup[j]['train'][i]),'necc')
+                print(len(data_split_unsup[j]['train'][i]),'necc')
                 client[unsup_client_id[i]].data_split = {'train': data_split_unsup[j]['train'][i], 'test': data_split_unsup[j]['test'][i]}
     
     # for i in range(100):

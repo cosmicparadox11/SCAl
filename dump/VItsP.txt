@@ -1,0 +1,2958 @@
+['art', 'clipart', 'realworld']
+Experiment: 2020_product_to_art_clipart_realworld_VITs_00
+cfg: {'control': {'num_supervised': '00', 'loss_mode': 'sup-ft-fix', 'num_clients': '15', 'active_rate': '1', 'data_split_mode': 'iid', 'local_epoch': '40-40', 'gm': '0.07', 'sbn': '1'}, 'data_name': 'OfficeHome', 'data_name_unsup': 'office31', 'model_name': 'VITs', 'num_supervised_clients': 5, 'num_workers': 4, 'init_seed': 2020, 'num_experiments': 1, 'log_interval': 0.25, 'device': 'cuda:0', 'world_size': 1, 'resume_mode': 1, 'resume_mode_target': 0, 'threshold': 0.8, 'verbose': False, 'switch_epoch': 0, 'cycles': 1, 'd_mode': 'new', 'switch_epoch_pred': 0, 'kl_loss': 0, 'elr_lam': 1.0, 'var_lr': 0.03, 'scheduler_name': 'CosineAnnealingLR', 'DA': 1, 'domain_s': 'product', 'domain_u': 'amazon', 'unsup_list': ['art', 'clipart', 'realworld'], 'unsup_doms': 'art-clipart-realworld', 'test_10_crop': False, 'bt': 50, 'adapt_wt': 0, 'avg_cent': 0, 'avg_cent_alpha': 0.5, 'backbone_arch': 'vit-small', 'embed_feat_dim': 256, 'tde': 5, 'pre_trained': 1, 'gamma': 0.1, 'decay': 0.9, 'par': 1, 'tau': 0.5, 'kl': 0, 'kl_weight': 0.1, 'new_lr': 0, 'unsup_mode': 'bmd', 'syn_max_train': 50000, 'compute_mean_norm': True, 'compute_std_dev': False, 'compute_running_mean': True, 'compute_running_var': True, 'mean_norm_reg': 0.01, 'std_dev_reg': 0, 'running_mean': 0, 'running_var': 0, 'wt_actloss': 0.0, 'add_fix': 0, 'full_sup': 0, 'with_BN': 1, 'train_pass': 0, 'module_name': 'None', 'register_hook_BN': 0, 'post_conv': 0, 'num_sup': 0, 'run_shot': 1, 'temp': 8.0, 'wt_avg': 1, 'pretrained_source': 0, 'tag_': '2020_product_0.03_VITs_1_sup-ft-fix', 'loss_mse': 0, 'multi_model': 0, 'client_test': 1, 'trk_grad': 0, 'pick': 'checkpoint', 'lambda': 1.0, 'cent_log': 1, 'save_cent': 0, 'logit_div': 0, 'cluster': 0, 'save_epoch': 0, 'new_mix': 0, 'lam': 0.5, 'vit_bn': False, 'var_reg': True, 'global_reg': 0, 'g_lambda': 1.0, 'var_wt': 0.0, 'clip_t': 0, 'cls_ps': False, 'control_name': '00_sup-ft-fix_15_1_iid_40-40_0.07_1', 'num_supervised': 0, 'data_shape': [3, 1000, 1000], 'conv': {'hidden_size': [32, 64]}, 'lenet': {'hidden_size': [20, 50]}, 'resnet9': {'hidden_size': [64, 128, 256, 512]}, 'resnet18': {'hidden_size': [64, 128, 256, 512]}, 'wresnet28x2': {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}, 'wresnet28x8': {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}, 'unsup_ratio': 1, 'loss_mode': 'sup-ft-fix', 'num_clients': 15, 'active_rate': 1.0, 'data_split_mode': 'iid', 'local_epoch': ['40', '40'], 'gm': 0.07, 'sbn': 1, 'server': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 128}, 'num_epochs': 40}, 'client': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 32}, 'num_epochs': 40}, 'local': {'optimizer_name': 'SGD', 'lr': 0.03, 'momentum': 0.9, 'weight_decay': 0.0005, 'nesterov': True}, 'global': {'batch_size': {'train': 64, 'test': 32}, 'shuffle': {'train': True, 'test': False}, 'num_epochs': 150, 'optimizer_name': 'SGD', 'lr': 1.0, 'momentum': 0.07, 'weight_decay': 0, 'nesterov': False, 'scheduler_name': 'ExponentialLR'}, 'alpha': 0.75, 'domain_tag': 'art_clipart_realworld', 'model_tag': '2020_product_to_art_clipart_realworld_VITs_00'}
+supervised source data name: OfficeHome
+fetching data OfficeHome...
+data name OfficeHome
+domain product
+test_10crop disabled
+original test len with 20 percent test: 444
+data ready
+list of un supervised domain ['art', 'clipart', 'realworld']
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 2427
+data ready
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4365
+data ready
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4357
+data ready
+False
+False
+False
+False
+150
+number of unsupervised domains: 3
+data len list of sup clients 0
+[5, 5, 5]
+domain id :0,j:0
+data length 2427
+split number 5
+len of target 2427
+data length 2427
+split number 5
+len of target 2427
+domain id :1,j:1
+data length 4365
+split number 5
+len of target 4365
+data length 4365
+split number 5
+len of target 4365
+domain id :2,j:2
+data length 4357
+split number 5
+len of target 4357
+data length 4357
+split number 5
+len of target 4357
+Resume from 51
+0 5
+1 5
+2 5
+1
+alt-fix_
+entered entered alt-fix mode
+bmd
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+[6, 10, 3, 9, 2, 7, 11, 1, 5, 14, 8, 12, 13, 4, 0]
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+traning the following clients [6, 10, 3, 9, 2, 7, 11, 1, 5, 14, 8, 12, 13, 4, 0]
+corresponding domains['clipart', 'art', 'realworld', 'art', 'art', 'art', 'clipart', 'realworld', 'clipart', 'art', 'realworld', 'realworld', 'clipart', 'clipart', 'realworld']
+traning client 6
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(6) clipart
+40
+epoch: 0
+[0.3900709219858156]
+epoch: 1
+[0.3959810874704492]
+epoch: 2
+[0.4101654846335697]
+epoch: 3
+[0.4302600472813239]
+epoch: 4
+[0.43617021276595747]
+epoch: 5
+[0.4373522458628842]
+epoch: 6
+[0.4657210401891253]
+epoch: 7
+[0.46217494089834515]
+epoch: 8
+[0.4598108747044917]
+epoch: 9
+[0.45390070921985815]
+epoch: 10
+[0.46217494089834515]
+epoch: 11
+[0.4515366430260047]
+epoch: 12
+[0.46808510638297873]
+epoch: 13
+[0.47635933806146574]
+epoch: 14
+[0.458628841607565]
+epoch: 15
+[0.4657210401891253]
+epoch: 16
+[0.47044917257683216]
+epoch: 17
+[0.4657210401891253]
+epoch: 18
+[0.4716312056737589]
+epoch: 19
+[0.46808510638297873]
+epoch: 20
+[0.4574468085106383]
+epoch: 21
+[0.4432624113475177]
+epoch: 22
+[0.45508274231678486]
+epoch: 23
+[0.45271867612293143]
+epoch: 24
+[0.4515366430260047]
+epoch: 25
+[0.4432624113475177]
+epoch: 26
+[0.4574468085106383]
+epoch: 27
+[0.45271867612293143]
+epoch: 28
+[0.4397163120567376]
+epoch: 29
+[0.44680851063829785]
+epoch: 30
+[0.4397163120567376]
+epoch: 31
+[0.4397163120567376]
+epoch: 32
+[0.45390070921985815]
+epoch: 33
+[0.45390070921985815]
+epoch: 34
+[0.44208037825059104]
+epoch: 35
+[0.44089834515366433]
+epoch: 36
+[0.44208037825059104]
+epoch: 37
+[0.45271867612293143]
+epoch: 38
+[0.44562647754137114]
+epoch: 39
+[0.4491725768321513]
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Train Epoch (C): 1(0%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 6(1/15)  Epoch Finished Time: 2:10:11.589006  Experiment Finished Time: 2:10:11.589006
+traning client 10
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(10) art
+40
+epoch: 0
+[0.6021505376344086]
+epoch: 1
+[0.6021505376344086]
+epoch: 2
+[0.632258064516129]
+epoch: 3
+[0.6516129032258065]
+epoch: 4
+[0.6645161290322581]
+epoch: 5
+[0.6494623655913978]
+epoch: 6
+[0.6795698924731183]
+epoch: 7
+[0.6817204301075269]
+epoch: 8
+[0.6946236559139785]
+epoch: 9
+[0.7053763440860215]
+epoch: 10
+[0.7075268817204301]
+epoch: 11
+[0.6860215053763441]
+epoch: 12
+[0.7161290322580646]
+epoch: 13
+[0.7032258064516129]
+epoch: 14
+[0.6967741935483871]
+epoch: 15
+[0.6967741935483871]
+epoch: 16
+[0.6924731182795699]
+epoch: 17
+[0.7096774193548387]
+epoch: 18
+[0.7075268817204301]
+epoch: 19
+[0.7010752688172043]
+epoch: 20
+[0.6795698924731183]
+epoch: 21
+[0.7010752688172043]
+epoch: 22
+[0.6838709677419355]
+epoch: 23
+[0.7032258064516129]
+epoch: 24
+[0.6881720430107527]
+epoch: 25
+[0.6967741935483871]
+epoch: 26
+[0.7204301075268817]
+epoch: 27
+[0.6989247311827957]
+epoch: 28
+[0.7096774193548387]
+epoch: 29
+[0.7161290322580646]
+epoch: 30
+[0.7118279569892473]
+epoch: 31
+[0.6924731182795699]
+epoch: 32
+[0.7075268817204301]
+epoch: 33
+[0.6989247311827957]
+epoch: 34
+[0.7118279569892473]
+epoch: 35
+[0.7139784946236559]
+epoch: 36
+[0.7053763440860215]
+epoch: 37
+[0.7118279569892473]
+epoch: 38
+[0.6946236559139785]
+epoch: 39
+[0.7204301075268817]
+traning client 3
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(3) realworld
+40
+epoch: 0
+[0.7860520094562647]
+epoch: 1
+[0.7872340425531915]
+epoch: 2
+[0.8215130023640662]
+epoch: 3
+[0.83451536643026]
+epoch: 4
+[0.8392434988179669]
+epoch: 5
+[0.8427895981087471]
+epoch: 6
+[0.8392434988179669]
+epoch: 7
+[0.8557919621749409]
+epoch: 8
+[0.851063829787234]
+epoch: 9
+[0.8427895981087471]
+epoch: 10
+[0.851063829787234]
+epoch: 11
+[0.8498817966903073]
+epoch: 12
+[0.8581560283687943]
+epoch: 13
+[0.851063829787234]
+epoch: 14
+[0.851063829787234]
+epoch: 15
+[0.8605200945626478]
+epoch: 16
+[0.859338061465721]
+epoch: 17
+[0.8699763593380615]
+epoch: 18
+[0.8652482269503546]
+epoch: 19
+[0.8664302600472813]
+epoch: 20
+[0.8676122931442081]
+epoch: 21
+[0.8676122931442081]
+epoch: 22
+[0.8569739952718676]
+epoch: 23
+[0.8617021276595744]
+epoch: 24
+[0.8676122931442081]
+epoch: 25
+[0.8640661938534279]
+epoch: 26
+[0.8735224586288416]
+epoch: 27
+[0.8628841607565012]
+epoch: 28
+[0.8676122931442081]
+epoch: 29
+[0.8617021276595744]
+epoch: 30
+[0.8569739952718676]
+epoch: 31
+[0.8605200945626478]
+epoch: 32
+[0.8640661938534279]
+epoch: 33
+[0.8747044917257684]
+epoch: 34
+[0.8628841607565012]
+epoch: 35
+[0.8534278959810875]
+epoch: 36
+[0.8546099290780141]
+epoch: 37
+[0.8652482269503546]
+epoch: 38
+[0.8664302600472813]
+epoch: 39
+[0.8711583924349882]
+traning client 9
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(9) art
+40
+epoch: 0
+[0.5870967741935483]
+epoch: 1
+[0.5935483870967742]
+epoch: 2
+[0.6344086021505376]
+epoch: 3
+[0.632258064516129]
+epoch: 4
+[0.6430107526881721]
+epoch: 5
+[0.6344086021505376]
+epoch: 6
+[0.6559139784946236]
+epoch: 7
+[0.6752688172043011]
+epoch: 8
+[0.6817204301075269]
+epoch: 9
+[0.6516129032258065]
+epoch: 10
+[0.6752688172043011]
+epoch: 11
+[0.6709677419354839]
+epoch: 12
+[0.6731182795698925]
+epoch: 13
+[0.6817204301075269]
+epoch: 14
+[0.6688172043010753]
+epoch: 15
+[0.6838709677419355]
+epoch: 16
+[0.6795698924731183]
+epoch: 17
+[0.6817204301075269]
+epoch: 18
+[0.6860215053763441]
+epoch: 19
+[0.6795698924731183]
+epoch: 20
+[0.6838709677419355]
+epoch: 21
+[0.6817204301075269]
+epoch: 22
+[0.6838709677419355]
+epoch: 23
+[0.6924731182795699]
+epoch: 24
+[0.6903225806451613]
+epoch: 25
+[0.6774193548387096]
+epoch: 26
+[0.6989247311827957]
+epoch: 27
+[0.7032258064516129]
+epoch: 28
+[0.6795698924731183]
+epoch: 29
+[0.6946236559139785]
+epoch: 30
+[0.6989247311827957]
+epoch: 31
+[0.6774193548387096]
+epoch: 32
+[0.6924731182795699]
+epoch: 33
+[0.6989247311827957]
+epoch: 34
+[0.6903225806451613]
+epoch: 35
+[0.6903225806451613]
+epoch: 36
+[0.7010752688172043]
+epoch: 37
+[0.6989247311827957]
+epoch: 38
+[0.6838709677419355]
+epoch: 39
+[0.6860215053763441]
+traning client 2
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(2) art
+40
+epoch: 0
+[0.6129032258064516]
+epoch: 1
+[0.589247311827957]
+epoch: 2
+[0.6473118279569893]
+epoch: 3
+[0.6580645161290323]
+epoch: 4
+[0.6709677419354839]
+epoch: 5
+[0.6666666666666666]
+epoch: 6
+[0.6924731182795699]
+epoch: 7
+[0.6795698924731183]
+epoch: 8
+[0.6817204301075269]
+epoch: 9
+[0.6903225806451613]
+epoch: 10
+[0.6752688172043011]
+epoch: 11
+[0.6946236559139785]
+epoch: 12
+[0.7053763440860215]
+epoch: 13
+[0.6666666666666666]
+epoch: 14
+[0.6838709677419355]
+epoch: 15
+[0.6924731182795699]
+epoch: 16
+[0.6881720430107527]
+epoch: 17
+[0.6903225806451613]
+epoch: 18
+[0.6881720430107527]
+epoch: 19
+[0.6989247311827957]
+epoch: 20
+[0.7118279569892473]
+epoch: 21
+[0.6967741935483871]
+epoch: 22
+[0.7053763440860215]
+epoch: 23
+[0.7182795698924731]
+epoch: 24
+[0.7032258064516129]
+epoch: 25
+[0.7032258064516129]
+epoch: 26
+[0.7204301075268817]
+epoch: 27
+[0.7118279569892473]
+epoch: 28
+[0.6989247311827957]
+epoch: 29
+[0.7139784946236559]
+epoch: 30
+[0.6989247311827957]
+epoch: 31
+[0.7204301075268817]
+epoch: 32
+[0.7290322580645161]
+epoch: 33
+[0.7225806451612903]
+epoch: 34
+[0.7096774193548387]
+epoch: 35
+[0.7225806451612903]
+epoch: 36
+[0.7161290322580646]
+epoch: 37
+[0.7075268817204301]
+epoch: 38
+[0.6946236559139785]
+epoch: 39
+[0.7161290322580646]
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Train Epoch (C): 1(27%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 2(5/15)  Epoch Finished Time: 1:41:35.438518  Experiment Finished Time: 1:41:35.438518
+traning client 7
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(7) art
+40
+epoch: 0
+[0.5935483870967742]
+epoch: 1
+[0.5870967741935483]
+epoch: 2
+[0.621505376344086]
+epoch: 3
+[0.6344086021505376]
+epoch: 4
+[0.6602150537634408]
+epoch: 5
+[0.6451612903225806]
+epoch: 6
+[0.6408602150537634]
+epoch: 7
+[0.6666666666666666]
+epoch: 8
+[0.6795698924731183]
+epoch: 9
+[0.6559139784946236]
+epoch: 10
+[0.6602150537634408]
+epoch: 11
+[0.6559139784946236]
+epoch: 12
+[0.6666666666666666]
+epoch: 13
+[0.6774193548387096]
+epoch: 14
+[0.6752688172043011]
+epoch: 15
+[0.6709677419354839]
+epoch: 16
+[0.6817204301075269]
+epoch: 17
+[0.6946236559139785]
+epoch: 18
+[0.6967741935483871]
+epoch: 19
+[0.6838709677419355]
+epoch: 20
+[0.6989247311827957]
+epoch: 21
+[0.6838709677419355]
+epoch: 22
+[0.6688172043010753]
+epoch: 23
+[0.6967741935483871]
+epoch: 24
+[0.6967741935483871]
+epoch: 25
+[0.6709677419354839]
+epoch: 26
+[0.6946236559139785]
+epoch: 27
+[0.6989247311827957]
+epoch: 28
+[0.6924731182795699]
+epoch: 29
+[0.6860215053763441]
+epoch: 30
+[0.6817204301075269]
+epoch: 31
+[0.6860215053763441]
+epoch: 32
+[0.6731182795698925]
+epoch: 33
+[0.6924731182795699]
+epoch: 34
+[0.6602150537634408]
+epoch: 35
+[0.7010752688172043]
+epoch: 36
+[0.6817204301075269]
+epoch: 37
+[0.6860215053763441]
+epoch: 38
+[0.6881720430107527]
+epoch: 39
+[0.6860215053763441]
+traning client 11
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(11) clipart
+40
+epoch: 0
+[0.3983451536643026]
+epoch: 1
+[0.425531914893617]
+epoch: 2
+[0.44089834515366433]
+epoch: 3
+[0.4657210401891253]
+epoch: 4
+[0.46808510638297873]
+epoch: 5
+[0.475177304964539]
+epoch: 6
+[0.4657210401891253]
+epoch: 7
+[0.48936170212765956]
+epoch: 8
+[0.49645390070921985]
+epoch: 9
+[0.48936170212765956]
+epoch: 10
+[0.47635933806146574]
+epoch: 11
+[0.4799054373522459]
+epoch: 12
+[0.483451536643026]
+epoch: 13
+[0.49527186761229314]
+epoch: 14
+[0.49645390070921985]
+epoch: 15
+[0.49763593380614657]
+epoch: 16
+[0.49645390070921985]
+epoch: 17
+[0.46926713947990545]
+epoch: 18
+[0.4988179669030733]
+epoch: 19
+[0.4846335697399527]
+epoch: 20
+[0.48817966903073284]
+epoch: 21
+[0.4846335697399527]
+epoch: 22
+[0.49763593380614657]
+epoch: 23
+[0.47754137115839246]
+epoch: 24
+[0.48226950354609927]
+epoch: 25
+[0.491725768321513]
+epoch: 26
+[0.4858156028368794]
+epoch: 27
+[0.4929078014184397]
+epoch: 28
+[0.48226950354609927]
+epoch: 29
+[0.4940898345153664]
+epoch: 30
+[0.48936170212765956]
+epoch: 31
+[0.483451536643026]
+epoch: 32
+[0.46808510638297873]
+epoch: 33
+[0.483451536643026]
+epoch: 34
+[0.4846335697399527]
+epoch: 35
+[0.48226950354609927]
+epoch: 36
+[0.48226950354609927]
+epoch: 37
+[0.4799054373522459]
+epoch: 38
+[0.47635933806146574]
+epoch: 39
+[0.4799054373522459]
+traning client 1
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(1) realworld
+40
+epoch: 0
+[0.7576832151300237]
+epoch: 1
+[0.7635933806146572]
+epoch: 2
+[0.8002364066193853]
+epoch: 3
+[0.8156028368794326]
+epoch: 4
+[0.8262411347517731]
+epoch: 5
+[0.8238770685579196]
+epoch: 6
+[0.8439716312056738]
+epoch: 7
+[0.8274231678486997]
+epoch: 8
+[0.851063829787234]
+epoch: 9
+[0.8297872340425532]
+epoch: 10
+[0.8286052009456265]
+epoch: 11
+[0.8286052009456265]
+epoch: 12
+[0.8262411347517731]
+epoch: 13
+[0.8321513002364066]
+epoch: 14
+[0.83451536643026]
+epoch: 15
+[0.8522458628841607]
+epoch: 16
+[0.8404255319148937]
+epoch: 17
+[0.83451536643026]
+epoch: 18
+[0.8451536643026005]
+epoch: 19
+[0.8475177304964538]
+epoch: 20
+[0.859338061465721]
+epoch: 21
+[0.8486997635933806]
+epoch: 22
+[0.8451536643026005]
+epoch: 23
+[0.8416075650118203]
+epoch: 24
+[0.8522458628841607]
+epoch: 25
+[0.851063829787234]
+epoch: 26
+[0.8416075650118203]
+epoch: 27
+[0.8534278959810875]
+epoch: 28
+[0.8498817966903073]
+epoch: 29
+[0.8451536643026005]
+epoch: 30
+[0.8451536643026005]
+epoch: 31
+[0.8486997635933806]
+epoch: 32
+[0.8486997635933806]
+epoch: 33
+[0.8569739952718676]
+epoch: 34
+[0.8380614657210402]
+epoch: 35
+[0.8475177304964538]
+epoch: 36
+[0.8463356973995272]
+epoch: 37
+[0.8486997635933806]
+epoch: 38
+[0.8522458628841607]
+epoch: 39
+[0.8451536643026005]
+traning client 5
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(5) clipart
+40
+epoch: 0
+[0.39952718676122934]
+epoch: 1
+[0.25059101654846333]
+epoch: 2
+[0.4302600472813239]
+epoch: 3
+[0.44208037825059104]
+epoch: 4
+[0.4787234042553192]
+epoch: 5
+[0.4799054373522459]
+epoch: 6
+[0.48226950354609927]
+epoch: 7
+[0.4657210401891253]
+epoch: 8
+[0.4929078014184397]
+epoch: 9
+[0.475177304964539]
+epoch: 10
+[0.5035460992907801]
+epoch: 11
+[0.48817966903073284]
+epoch: 12
+[0.491725768321513]
+epoch: 13
+[0.4940898345153664]
+epoch: 14
+[0.5059101654846335]
+epoch: 15
+[0.4929078014184397]
+epoch: 16
+[0.483451536643026]
+epoch: 17
+[0.491725768321513]
+epoch: 18
+[0.475177304964539]
+epoch: 19
+[0.4905437352245863]
+epoch: 20
+[0.4929078014184397]
+epoch: 21
+[0.49763593380614657]
+epoch: 22
+[0.4929078014184397]
+epoch: 23
+[0.483451536643026]
+epoch: 24
+[0.483451536643026]
+epoch: 25
+[0.48817966903073284]
+epoch: 26
+[0.4905437352245863]
+epoch: 27
+[0.4787234042553192]
+epoch: 28
+[0.48699763593380613]
+epoch: 29
+[0.466903073286052]
+epoch: 30
+[0.4799054373522459]
+epoch: 31
+[0.48226950354609927]
+epoch: 32
+[0.47044917257683216]
+epoch: 33
+[0.47635933806146574]
+epoch: 34
+[0.4716312056737589]
+epoch: 35
+[0.4799054373522459]
+epoch: 36
+[0.475177304964539]
+epoch: 37
+[0.483451536643026]
+epoch: 38
+[0.46099290780141844]
+epoch: 39
+[0.46335697399527187]
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Train Epoch (C): 1(53%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 5(9/15)  Epoch Finished Time: 1:04:18.160849  Experiment Finished Time: 1:04:18.160849
+traning client 14
+unsupervised training in progess
+datasplit_len 465
+freezing
+tensor(14) art
+40
+epoch: 0
+[0.5655913978494623]
+epoch: 1
+[0.5913978494623656]
+epoch: 2
+[0.6172043010752688]
+epoch: 3
+[0.6537634408602151]
+epoch: 4
+[0.6795698924731183]
+epoch: 5
+[0.6623655913978495]
+epoch: 6
+[0.6516129032258065]
+epoch: 7
+[0.6752688172043011]
+epoch: 8
+[0.6602150537634408]
+epoch: 9
+[0.6924731182795699]
+epoch: 10
+[0.6967741935483871]
+epoch: 11
+[0.7096774193548387]
+epoch: 12
+[0.6688172043010753]
+epoch: 13
+[0.6860215053763441]
+epoch: 14
+[0.6688172043010753]
+epoch: 15
+[0.6903225806451613]
+epoch: 16
+[0.6666666666666666]
+epoch: 17
+[0.6881720430107527]
+epoch: 18
+[0.6817204301075269]
+epoch: 19
+[0.6924731182795699]
+epoch: 20
+[0.7010752688172043]
+epoch: 21
+[0.6903225806451613]
+epoch: 22
+[0.6881720430107527]
+epoch: 23
+[0.7032258064516129]
+epoch: 24
+[0.6860215053763441]
+epoch: 25
+[0.7139784946236559]
+epoch: 26
+[0.6946236559139785]
+epoch: 27
+[0.7032258064516129]
+epoch: 28
+[0.7139784946236559]
+epoch: 29
+[0.7053763440860215]
+epoch: 30
+[0.7075268817204301]
+epoch: 31
+[0.6817204301075269]
+epoch: 32
+[0.6752688172043011]
+epoch: 33
+[0.6860215053763441]
+epoch: 34
+[0.6838709677419355]
+epoch: 35
+[0.6924731182795699]
+epoch: 36
+[0.6752688172043011]
+epoch: 37
+[0.6838709677419355]
+epoch: 38
+[0.6795698924731183]
+epoch: 39
+[0.6795698924731183]
+traning client 8
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(8) realworld
+40
+epoch: 0
+[0.7706855791962175]
+epoch: 1
+[0.7742316784869976]
+epoch: 2
+[0.7990543735224587]
+epoch: 3
+[0.8108747044917257]
+epoch: 4
+[0.8203309692671394]
+epoch: 5
+[0.8073286052009456]
+epoch: 6
+[0.8203309692671394]
+epoch: 7
+[0.8215130023640662]
+epoch: 8
+[0.8156028368794326]
+epoch: 9
+[0.8274231678486997]
+epoch: 10
+[0.8132387706855791]
+epoch: 11
+[0.8226950354609929]
+epoch: 12
+[0.8274231678486997]
+epoch: 13
+[0.8156028368794326]
+epoch: 14
+[0.8250591016548463]
+epoch: 15
+[0.83451536643026]
+epoch: 16
+[0.8274231678486997]
+epoch: 17
+[0.8392434988179669]
+epoch: 18
+[0.83451536643026]
+epoch: 19
+[0.8215130023640662]
+epoch: 20
+[0.8274231678486997]
+epoch: 21
+[0.8262411347517731]
+epoch: 22
+[0.8274231678486997]
+epoch: 23
+[0.8274231678486997]
+epoch: 24
+[0.8380614657210402]
+epoch: 25
+[0.8321513002364066]
+epoch: 26
+[0.8286052009456265]
+epoch: 27
+[0.8380614657210402]
+epoch: 28
+[0.8333333333333334]
+epoch: 29
+[0.8416075650118203]
+epoch: 30
+[0.8286052009456265]
+epoch: 31
+[0.8368794326241135]
+epoch: 32
+[0.8238770685579196]
+epoch: 33
+[0.8297872340425532]
+epoch: 34
+[0.8321513002364066]
+epoch: 35
+[0.8356973995271868]
+epoch: 36
+[0.83451536643026]
+epoch: 37
+[0.8203309692671394]
+epoch: 38
+[0.8380614657210402]
+epoch: 39
+[0.8286052009456265]
+traning client 12
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(12) realworld
+40
+epoch: 0
+[0.7825059101654847]
+epoch: 1
+[0.789598108747045]
+epoch: 2
+[0.8073286052009456]
+epoch: 3
+[0.8132387706855791]
+epoch: 4
+[0.8238770685579196]
+epoch: 5
+[0.8226950354609929]
+epoch: 6
+[0.8203309692671394]
+epoch: 7
+[0.8215130023640662]
+epoch: 8
+[0.8286052009456265]
+epoch: 9
+[0.8380614657210402]
+epoch: 10
+[0.8309692671394799]
+epoch: 11
+[0.8380614657210402]
+epoch: 12
+[0.8463356973995272]
+epoch: 13
+[0.8427895981087471]
+epoch: 14
+[0.8416075650118203]
+epoch: 15
+[0.8486997635933806]
+epoch: 16
+[0.851063829787234]
+epoch: 17
+[0.8427895981087471]
+epoch: 18
+[0.8427895981087471]
+epoch: 19
+[0.8427895981087471]
+epoch: 20
+[0.83451536643026]
+epoch: 21
+[0.8569739952718676]
+epoch: 22
+[0.8439716312056738]
+epoch: 23
+[0.83451536643026]
+epoch: 24
+[0.8463356973995272]
+epoch: 25
+[0.8380614657210402]
+epoch: 26
+[0.8522458628841607]
+epoch: 27
+[0.8486997635933806]
+epoch: 28
+[0.83451536643026]
+epoch: 29
+[0.8534278959810875]
+epoch: 30
+[0.8392434988179669]
+epoch: 31
+[0.8416075650118203]
+epoch: 32
+[0.8617021276595744]
+epoch: 33
+[0.8557919621749409]
+epoch: 34
+[0.8546099290780141]
+epoch: 35
+[0.8569739952718676]
+epoch: 36
+[0.8522458628841607]
+epoch: 37
+[0.8534278959810875]
+epoch: 38
+[0.8451536643026005]
+epoch: 39
+[0.8392434988179669]
+traning client 13
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(13) clipart
+40
+epoch: 0
+[0.38416075650118203]
+epoch: 1
+[0.44089834515366433]
+epoch: 2
+[0.450354609929078]
+epoch: 3
+[0.4657210401891253]
+epoch: 4
+[0.475177304964539]
+epoch: 5
+[0.46099290780141844]
+epoch: 6
+[0.466903073286052]
+epoch: 7
+[0.4787234042553192]
+epoch: 8
+[0.475177304964539]
+epoch: 9
+[0.46099290780141844]
+epoch: 10
+[0.46335697399527187]
+epoch: 11
+[0.46217494089834515]
+epoch: 12
+[0.4657210401891253]
+epoch: 13
+[0.4716312056737589]
+epoch: 14
+[0.4657210401891253]
+epoch: 15
+[0.4739952718676123]
+epoch: 16
+[0.46099290780141844]
+epoch: 17
+[0.4645390070921986]
+epoch: 18
+[0.46099290780141844]
+epoch: 19
+[0.458628841607565]
+epoch: 20
+[0.4728132387706856]
+epoch: 21
+[0.4657210401891253]
+epoch: 22
+[0.4657210401891253]
+epoch: 23
+[0.4645390070921986]
+epoch: 24
+[0.46335697399527187]
+epoch: 25
+[0.466903073286052]
+epoch: 26
+[0.48108747044917255]
+epoch: 27
+[0.4645390070921986]
+epoch: 28
+[0.46808510638297873]
+epoch: 29
+[0.47754137115839246]
+epoch: 30
+[0.46099290780141844]
+epoch: 31
+[0.4739952718676123]
+epoch: 32
+[0.4657210401891253]
+epoch: 33
+[0.466903073286052]
+epoch: 34
+[0.46926713947990545]
+epoch: 35
+[0.47754137115839246]
+epoch: 36
+[0.4645390070921986]
+epoch: 37
+[0.4645390070921986]
+epoch: 38
+[0.47044917257683216]
+epoch: 39
+[0.46335697399527187]
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Train Epoch (C): 1(80%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 13(13/15)  Epoch Finished Time: 0:23:21.914506  Experiment Finished Time: 0:23:21.914506
+traning client 4
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(4) clipart
+40
+epoch: 0
+[0.38416075650118203]
+epoch: 1
+[0.4160756501182033]
+epoch: 2
+[0.44089834515366433]
+epoch: 3
+[0.466903073286052]
+epoch: 4
+[0.45508274231678486]
+epoch: 5
+[0.4657210401891253]
+epoch: 6
+[0.44799054373522457]
+epoch: 7
+[0.4645390070921986]
+epoch: 8
+[0.46217494089834515]
+epoch: 9
+[0.48226950354609927]
+epoch: 10
+[0.4598108747044917]
+epoch: 11
+[0.4739952718676123]
+epoch: 12
+[0.475177304964539]
+epoch: 13
+[0.47044917257683216]
+epoch: 14
+[0.4787234042553192]
+epoch: 15
+[0.4562647754137116]
+epoch: 16
+[0.46335697399527187]
+epoch: 17
+[0.466903073286052]
+epoch: 18
+[0.47044917257683216]
+epoch: 19
+[0.46335697399527187]
+epoch: 20
+[0.4574468085106383]
+epoch: 21
+[0.45390070921985815]
+epoch: 22
+[0.4645390070921986]
+epoch: 23
+[0.45271867612293143]
+epoch: 24
+[0.4574468085106383]
+epoch: 25
+[0.4515366430260047]
+epoch: 26
+[0.46217494089834515]
+epoch: 27
+[0.44799054373522457]
+epoch: 28
+[0.4562647754137116]
+epoch: 29
+[0.4491725768321513]
+epoch: 30
+[0.4645390070921986]
+epoch: 31
+[0.458628841607565]
+epoch: 32
+[0.45390070921985815]
+epoch: 33
+[0.44562647754137114]
+epoch: 34
+[0.46099290780141844]
+epoch: 35
+[0.4444444444444444]
+epoch: 36
+[0.4491725768321513]
+epoch: 37
+[0.44680851063829785]
+epoch: 38
+[0.46217494089834515]
+epoch: 39
+[0.4515366430260047]
+traning client 0
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(0) realworld
+40
+epoch: 0
+[0.7919621749408984]
+epoch: 1
+[0.8120567375886525]
+epoch: 2
+[0.8262411347517731]
+epoch: 3
+[0.83451536643026]
+epoch: 4
+[0.8475177304964538]
+epoch: 5
+[0.8522458628841607]
+epoch: 6
+[0.851063829787234]
+epoch: 7
+[0.859338061465721]
+epoch: 8
+[0.8628841607565012]
+epoch: 9
+[0.8522458628841607]
+epoch: 10
+[0.8569739952718676]
+epoch: 11
+[0.8581560283687943]
+epoch: 12
+[0.8475177304964538]
+epoch: 13
+[0.8463356973995272]
+epoch: 14
+[0.8486997635933806]
+epoch: 15
+[0.8628841607565012]
+epoch: 16
+[0.851063829787234]
+epoch: 17
+[0.8557919621749409]
+epoch: 18
+[0.8581560283687943]
+epoch: 19
+[0.8676122931442081]
+epoch: 20
+[0.8711583924349882]
+epoch: 21
+[0.8652482269503546]
+epoch: 22
+[0.8676122931442081]
+epoch: 23
+[0.8676122931442081]
+epoch: 24
+[0.8617021276595744]
+epoch: 25
+[0.8664302600472813]
+epoch: 26
+[0.8664302600472813]
+epoch: 27
+[0.8664302600472813]
+epoch: 28
+[0.8687943262411347]
+epoch: 29
+[0.8628841607565012]
+epoch: 30
+[0.8699763593380615]
+epoch: 31
+[0.8723404255319149]
+epoch: 32
+[0.8687943262411347]
+epoch: 33
+[0.8735224586288416]
+epoch: 34
+[0.8664302600472813]
+epoch: 35
+[0.8770685579196218]
+epoch: 36
+[0.8628841607565012]
+epoch: 37
+[0.8711583924349882]
+epoch: 38
+[0.8664302600472813]
+epoch: 39
+[0.8687943262411347]
+FedAvg with BN params
+testing on client models
+num of active clients : 15
+testing client number: tensor(0)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.8581  Accuracy: 85.9766
+accuracy 85.97658939637364
+accuracy 85.97658939637364
+testing client number: tensor(1)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.8794  Accuracy: 85.7471
+accuracy 85.74707367454671
+accuracy 85.74707367454671
+testing client number: tensor(2)
+clinet_domain art
+domain:art,id:0,client_domain:art
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.7221  Accuracy: 69.0564
+accuracy 69.05644828849827
+accuracy 69.05644828849827
+testing client number: tensor(3)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.8932  Accuracy: 86.1143
+accuracy 86.11429882946982
+accuracy 86.11429882946982
+testing client number: tensor(4)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.9395  Accuracy: 45.3608
+accuracy 45.360824736150526
+accuracy 45.360824736150526
+testing client number: tensor(5)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.7651  Accuracy: 47.7434
+accuracy 47.74341351486154
+accuracy 47.74341351486154
+testing client number: tensor(6)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.8215  Accuracy: 46.2543
+accuracy 46.25429553199061
+accuracy 46.25429553199061
+testing client number: tensor(7)
+clinet_domain art
+domain:art,id:0,client_domain:art
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.6855  Accuracy: 69.1389
+accuracy 69.13885454744481
+accuracy 69.13885454744481
+testing client number: tensor(8)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.8505  Accuracy: 85.5864
+accuracy 85.58641266926784
+accuracy 85.58641266926784
+testing client number: tensor(9)
+clinet_domain art
+domain:art,id:0,client_domain:art
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.7672  Accuracy: 69.5097
+accuracy 69.5096827264573
+accuracy 69.5096827264573
+testing client number: tensor(10)
+clinet_domain art
+domain:art,id:0,client_domain:art
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.5502  Accuracy: 70.7458
+accuracy 70.7457766601663
+accuracy 70.7457766601663
+testing client number: tensor(11)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.6560  Accuracy: 46.2543
+accuracy 46.254295527402476
+accuracy 46.254295527402476
+testing client number: tensor(12)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.8422  Accuracy: 86.5045
+accuracy 86.50447555657563
+accuracy 86.50447555657563
+testing client number: tensor(13)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.7006  Accuracy: 46.5063
+accuracy 46.50630010930397
+accuracy 46.50630010930397
+testing client number: tensor(14)
+clinet_domain art
+domain:art,id:0,client_domain:art
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.6416  Accuracy: 69.2625
+accuracy 69.26246395826242
+accuracy 69.26246395826242
+{'art': 347.7132261808291, 'clipart': 232.11912941970908, 'realworld': 429.9288501262336}
+domian art
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.6733  Accuracy: 69.5426
+domian clipart
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.7765  Accuracy: 46.4238
+domian realworld
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.8647  Accuracy: 85.9858
+67.31741371511812 3.1048513953432484
+Model: 2020_product_to_art_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 3.1049  Accuracy: 67.3174
+saving
+['product', 'clipart', 'realworld']
+Experiment: 2020_art_to_product_clipart_realworld_VITs_00
+cfg: {'control': {'num_supervised': '00', 'loss_mode': 'sup-ft-fix', 'num_clients': '15', 'active_rate': '1', 'data_split_mode': 'iid', 'local_epoch': '40-40', 'gm': '0.07', 'sbn': '1'}, 'data_name': 'OfficeHome', 'data_name_unsup': 'office31', 'model_name': 'VITs', 'num_supervised_clients': 5, 'num_workers': 4, 'init_seed': 2020, 'num_experiments': 1, 'log_interval': 0.25, 'device': 'cuda:0', 'world_size': 1, 'resume_mode': 1, 'resume_mode_target': 0, 'threshold': 0.8, 'verbose': False, 'switch_epoch': 0, 'cycles': 1, 'd_mode': 'new', 'switch_epoch_pred': 0, 'kl_loss': 0, 'elr_lam': 1.0, 'var_lr': 0.03, 'scheduler_name': 'CosineAnnealingLR', 'DA': 1, 'domain_s': 'art', 'domain_u': 'amazon', 'unsup_list': ['product', 'clipart', 'realworld'], 'unsup_doms': 'product-clipart-realworld', 'test_10_crop': False, 'bt': 50, 'adapt_wt': 0, 'avg_cent': 0, 'avg_cent_alpha': 0.5, 'backbone_arch': 'vit-small', 'embed_feat_dim': 256, 'tde': 5, 'pre_trained': 1, 'gamma': 0.1, 'decay': 0.9, 'par': 1, 'tau': 0.5, 'kl': 0, 'kl_weight': 0.1, 'new_lr': 0, 'unsup_mode': 'bmd', 'syn_max_train': 50000, 'compute_mean_norm': True, 'compute_std_dev': False, 'compute_running_mean': True, 'compute_running_var': True, 'mean_norm_reg': 0.01, 'std_dev_reg': 0, 'running_mean': 0, 'running_var': 0, 'wt_actloss': 0.0, 'add_fix': 0, 'full_sup': 0, 'with_BN': 1, 'train_pass': 0, 'module_name': 'None', 'register_hook_BN': 0, 'post_conv': 0, 'num_sup': 0, 'run_shot': 1, 'temp': 8.0, 'wt_avg': 1, 'pretrained_source': 0, 'tag_': '2020_art_0.03_VITs_3_sup-ft-fix', 'loss_mse': 0, 'multi_model': 0, 'client_test': 1, 'trk_grad': 0, 'pick': 'checkpoint', 'lambda': 1.0, 'cent_log': 1, 'save_cent': 0, 'logit_div': 0, 'cluster': 0, 'save_epoch': 0, 'new_mix': 0, 'lam': 0.5, 'vit_bn': False, 'var_reg': True, 'global_reg': 0, 'g_lambda': 1.0, 'var_wt': 0.0, 'clip_t': 0, 'cls_ps': False, 'control_name': '00_sup-ft-fix_15_1_iid_40-40_0.07_1', 'num_supervised': 0, 'data_shape': [3, 1000, 1000], 'conv': {'hidden_size': [32, 64]}, 'lenet': {'hidden_size': [20, 50]}, 'resnet9': {'hidden_size': [64, 128, 256, 512]}, 'resnet18': {'hidden_size': [64, 128, 256, 512]}, 'wresnet28x2': {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}, 'wresnet28x8': {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}, 'unsup_ratio': 1, 'loss_mode': 'sup-ft-fix', 'num_clients': 15, 'active_rate': 1.0, 'data_split_mode': 'iid', 'local_epoch': ['40', '40'], 'gm': 0.07, 'sbn': 1, 'server': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 128}, 'num_epochs': 40}, 'client': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 32}, 'num_epochs': 40}, 'local': {'optimizer_name': 'SGD', 'lr': 0.03, 'momentum': 0.9, 'weight_decay': 0.0005, 'nesterov': True}, 'global': {'batch_size': {'train': 64, 'test': 32}, 'shuffle': {'train': True, 'test': False}, 'num_epochs': 150, 'optimizer_name': 'SGD', 'lr': 1.0, 'momentum': 0.07, 'weight_decay': 0, 'nesterov': False, 'scheduler_name': 'ExponentialLR'}, 'alpha': 0.75, 'domain_tag': 'product_clipart_realworld', 'model_tag': '2020_art_to_product_clipart_realworld_VITs_00'}
+supervised source data name: OfficeHome
+fetching data OfficeHome...
+data name OfficeHome
+domain art
+test_10crop disabled
+original test len with 20 percent test: 243
+data ready
+list of un supervised domain ['product', 'clipart', 'realworld']
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4439
+data ready
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4365
+data ready
+fetching unsupervised domains
+fetching data OfficeHome...
+test_10crop disabled
+test len with 100 percent test: 4357
+data ready
+False
+False
+False
+False
+150
+number of unsupervised domains: 3
+data len list of sup clients 0
+[5, 5, 5]
+domain id :0,j:0
+data length 4439
+split number 5
+len of target 4439
+data length 4439
+split number 5
+len of target 4439
+domain id :1,j:1
+data length 4365
+split number 5
+len of target 4365
+data length 4365
+split number 5
+len of target 4365
+domain id :2,j:2
+data length 4357
+split number 5
+len of target 4357
+data length 4357
+split number 5
+len of target 4357
+Resume from 51
+0 5
+1 5
+2 5
+1
+alt-fix_
+entered entered alt-fix mode
+bmd
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+[6, 10, 3, 9, 2, 7, 11, 1, 5, 14, 8, 12, 13, 4, 0]
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+traning the following clients [6, 10, 3, 9, 2, 7, 11, 1, 5, 14, 8, 12, 13, 4, 0]
+corresponding domains['clipart', 'product', 'realworld', 'product', 'product', 'product', 'clipart', 'realworld', 'clipart', 'product', 'realworld', 'realworld', 'clipart', 'clipart', 'realworld']
+traning client 6
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(6) clipart
+40
+epoch: 0
+[0.40543735224586286]
+epoch: 1
+[0.44799054373522457]
+epoch: 2
+[0.4645390070921986]
+epoch: 3
+[0.48817966903073284]
+epoch: 4
+[0.5059101654846335]
+epoch: 5
+[0.5023640661938534]
+epoch: 6
+[0.4905437352245863]
+epoch: 7
+[0.4739952718676123]
+epoch: 8
+[0.48936170212765956]
+epoch: 9
+[0.4846335697399527]
+epoch: 10
+[0.49645390070921985]
+epoch: 11
+[0.4988179669030733]
+epoch: 12
+[0.48817966903073284]
+epoch: 13
+[0.4929078014184397]
+epoch: 14
+[0.48936170212765956]
+epoch: 15
+[0.5130023640661938]
+epoch: 16
+[0.5070921985815603]
+epoch: 17
+[0.47754137115839246]
+epoch: 18
+[0.47754137115839246]
+epoch: 19
+[0.48936170212765956]
+epoch: 20
+[0.4905437352245863]
+epoch: 21
+[0.47754137115839246]
+epoch: 22
+[0.4799054373522459]
+epoch: 23
+[0.4940898345153664]
+epoch: 24
+[0.4739952718676123]
+epoch: 25
+[0.4905437352245863]
+epoch: 26
+[0.46926713947990545]
+epoch: 27
+[0.4787234042553192]
+epoch: 28
+[0.47754137115839246]
+epoch: 29
+[0.4858156028368794]
+epoch: 30
+[0.4728132387706856]
+epoch: 31
+[0.4739952718676123]
+epoch: 32
+[0.46217494089834515]
+epoch: 33
+[0.4940898345153664]
+epoch: 34
+[0.458628841607565]
+epoch: 35
+[0.47635933806146574]
+epoch: 36
+[0.483451536643026]
+epoch: 37
+[0.4657210401891253]
+epoch: 38
+[0.46099290780141844]
+epoch: 39
+[0.46808510638297873]
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Train Epoch (C): 1(0%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 6(1/15)  Epoch Finished Time: 2:11:57.485221  Experiment Finished Time: 2:11:57.485221
+traning client 10
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(10) product
+40
+epoch: 0
+[0.6941860465116279]
+epoch: 1
+[0.7093023255813954]
+epoch: 2
+[0.7523255813953489]
+epoch: 3
+[0.7883720930232558]
+epoch: 4
+[0.7965116279069767]
+epoch: 5
+[0.7755813953488372]
+epoch: 6
+[0.7767441860465116]
+epoch: 7
+[0.7848837209302325]
+epoch: 8
+[0.791860465116279]
+epoch: 9
+[0.7883720930232558]
+epoch: 10
+[0.7906976744186046]
+epoch: 11
+[0.7953488372093023]
+epoch: 12
+[0.7953488372093023]
+epoch: 13
+[0.7872093023255814]
+epoch: 14
+[0.7953488372093023]
+epoch: 15
+[0.7895348837209303]
+epoch: 16
+[0.7802325581395348]
+epoch: 17
+[0.7872093023255814]
+epoch: 18
+[0.7883720930232558]
+epoch: 19
+[0.7779069767441861]
+epoch: 20
+[0.7895348837209303]
+epoch: 21
+[0.786046511627907]
+epoch: 22
+[0.7906976744186046]
+epoch: 23
+[0.7895348837209303]
+epoch: 24
+[0.7848837209302325]
+epoch: 25
+[0.7802325581395348]
+epoch: 26
+[0.7790697674418605]
+epoch: 27
+[0.7883720930232558]
+epoch: 28
+[0.7883720930232558]
+epoch: 29
+[0.7837209302325582]
+epoch: 30
+[0.7790697674418605]
+epoch: 31
+[0.7906976744186046]
+epoch: 32
+[0.7848837209302325]
+epoch: 33
+[0.786046511627907]
+epoch: 34
+[0.7906976744186046]
+epoch: 35
+[0.7883720930232558]
+epoch: 36
+[0.7930232558139535]
+epoch: 37
+[0.7930232558139535]
+epoch: 38
+[0.7906976744186046]
+epoch: 39
+[0.7906976744186046]
+traning client 3
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(3) realworld
+40
+epoch: 0
+[0.7553191489361702]
+epoch: 1
+[0.7612293144208038]
+epoch: 2
+[0.793144208037825]
+epoch: 3
+[0.8026004728132388]
+epoch: 4
+[0.8297872340425532]
+epoch: 5
+[0.8333333333333334]
+epoch: 6
+[0.8333333333333334]
+epoch: 7
+[0.8226950354609929]
+epoch: 8
+[0.8286052009456265]
+epoch: 9
+[0.8404255319148937]
+epoch: 10
+[0.8498817966903073]
+epoch: 11
+[0.8416075650118203]
+epoch: 12
+[0.8309692671394799]
+epoch: 13
+[0.851063829787234]
+epoch: 14
+[0.8368794326241135]
+epoch: 15
+[0.8392434988179669]
+epoch: 16
+[0.8321513002364066]
+epoch: 17
+[0.8392434988179669]
+epoch: 18
+[0.8416075650118203]
+epoch: 19
+[0.83451536643026]
+epoch: 20
+[0.8368794326241135]
+epoch: 21
+[0.8309692671394799]
+epoch: 22
+[0.8404255319148937]
+epoch: 23
+[0.8439716312056738]
+epoch: 24
+[0.8439716312056738]
+epoch: 25
+[0.83451536643026]
+epoch: 26
+[0.8416075650118203]
+epoch: 27
+[0.8262411347517731]
+epoch: 28
+[0.8309692671394799]
+epoch: 29
+[0.8286052009456265]
+epoch: 30
+[0.8392434988179669]
+epoch: 31
+[0.8356973995271868]
+epoch: 32
+[0.8297872340425532]
+epoch: 33
+[0.8356973995271868]
+epoch: 34
+[0.83451536643026]
+epoch: 35
+[0.8439716312056738]
+epoch: 36
+[0.8250591016548463]
+epoch: 37
+[0.8416075650118203]
+epoch: 38
+[0.8392434988179669]
+epoch: 39
+[0.8368794326241135]
+traning client 9
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(9) product
+40
+epoch: 0
+[0.7]
+epoch: 1
+[0.7174418604651163]
+epoch: 2
+[0.7627906976744186]
+epoch: 3
+[0.7604651162790698]
+epoch: 4
+[0.7802325581395348]
+epoch: 5
+[0.7837209302325582]
+epoch: 6
+[0.7988372093023256]
+epoch: 7
+[0.786046511627907]
+epoch: 8
+[0.7848837209302325]
+epoch: 9
+[0.8058139534883721]
+epoch: 10
+[0.7930232558139535]
+epoch: 11
+[0.7767441860465116]
+epoch: 12
+[0.8]
+epoch: 13
+[0.7813953488372093]
+epoch: 14
+[0.7941860465116279]
+epoch: 15
+[0.7895348837209303]
+epoch: 16
+[0.7965116279069767]
+epoch: 17
+[0.8011627906976744]
+epoch: 18
+[0.8]
+epoch: 19
+[0.8]
+epoch: 20
+[0.7872093023255814]
+epoch: 21
+[0.791860465116279]
+epoch: 22
+[0.7906976744186046]
+epoch: 23
+[0.791860465116279]
+epoch: 24
+[0.791860465116279]
+epoch: 25
+[0.7953488372093023]
+epoch: 26
+[0.7883720930232558]
+epoch: 27
+[0.7965116279069767]
+epoch: 28
+[0.7988372093023256]
+epoch: 29
+[0.786046511627907]
+epoch: 30
+[0.7988372093023256]
+epoch: 31
+[0.7895348837209303]
+epoch: 32
+[0.7953488372093023]
+epoch: 33
+[0.7895348837209303]
+epoch: 34
+[0.786046511627907]
+epoch: 35
+[0.7755813953488372]
+epoch: 36
+[0.7779069767441861]
+epoch: 37
+[0.7779069767441861]
+epoch: 38
+[0.7802325581395348]
+epoch: 39
+[0.7872093023255814]
+traning client 2
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(2) product
+40
+epoch: 0
+[0.7034883720930233]
+epoch: 1
+[0.7406976744186047]
+epoch: 2
+[0.7430232558139535]
+epoch: 3
+[0.7674418604651163]
+epoch: 4
+[0.7662790697674419]
+epoch: 5
+[0.763953488372093]
+epoch: 6
+[0.7686046511627908]
+epoch: 7
+[0.7848837209302325]
+epoch: 8
+[0.791860465116279]
+epoch: 9
+[0.7941860465116279]
+epoch: 10
+[0.7883720930232558]
+epoch: 11
+[0.7988372093023256]
+epoch: 12
+[0.7976744186046512]
+epoch: 13
+[0.8104651162790698]
+epoch: 14
+[0.8011627906976744]
+epoch: 15
+[0.8046511627906977]
+epoch: 16
+[0.7988372093023256]
+epoch: 17
+[0.8069767441860465]
+epoch: 18
+[0.7965116279069767]
+epoch: 19
+[0.7976744186046512]
+epoch: 20
+[0.7895348837209303]
+epoch: 21
+[0.7906976744186046]
+epoch: 22
+[0.7883720930232558]
+epoch: 23
+[0.8058139534883721]
+epoch: 24
+[0.7976744186046512]
+epoch: 25
+[0.7930232558139535]
+epoch: 26
+[0.7976744186046512]
+epoch: 27
+[0.791860465116279]
+epoch: 28
+[0.7965116279069767]
+epoch: 29
+[0.7930232558139535]
+epoch: 30
+[0.8023255813953488]
+epoch: 31
+[0.8046511627906977]
+epoch: 32
+[0.8069767441860465]
+epoch: 33
+[0.8046511627906977]
+epoch: 34
+[0.8069767441860465]
+epoch: 35
+[0.791860465116279]
+epoch: 36
+[0.8058139534883721]
+epoch: 37
+[0.8081395348837209]
+epoch: 38
+[0.7953488372093023]
+epoch: 39
+[0.8034883720930233]
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Train Epoch (C): 1(27%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 2(5/15)  Epoch Finished Time: 1:54:35.555172  Experiment Finished Time: 1:54:35.555172
+traning client 7
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(7) product
+40
+epoch: 0
+[0.7093023255813954]
+epoch: 1
+[0.7186046511627907]
+epoch: 2
+[0.7476744186046511]
+epoch: 3
+[0.7755813953488372]
+epoch: 4
+[0.7906976744186046]
+epoch: 5
+[0.7965116279069767]
+epoch: 6
+[0.7709302325581395]
+epoch: 7
+[0.7802325581395348]
+epoch: 8
+[0.7906976744186046]
+epoch: 9
+[0.7976744186046512]
+epoch: 10
+[0.7755813953488372]
+epoch: 11
+[0.7988372093023256]
+epoch: 12
+[0.7825581395348837]
+epoch: 13
+[0.7906976744186046]
+epoch: 14
+[0.7895348837209303]
+epoch: 15
+[0.7895348837209303]
+epoch: 16
+[0.772093023255814]
+epoch: 17
+[0.786046511627907]
+epoch: 18
+[0.786046511627907]
+epoch: 19
+[0.791860465116279]
+epoch: 20
+[0.7930232558139535]
+epoch: 21
+[0.7988372093023256]
+epoch: 22
+[0.7895348837209303]
+epoch: 23
+[0.7906976744186046]
+epoch: 24
+[0.8058139534883721]
+epoch: 25
+[0.7906976744186046]
+epoch: 26
+[0.7976744186046512]
+epoch: 27
+[0.8023255813953488]
+epoch: 28
+[0.8023255813953488]
+epoch: 29
+[0.7883720930232558]
+epoch: 30
+[0.7790697674418605]
+epoch: 31
+[0.7813953488372093]
+epoch: 32
+[0.7837209302325582]
+epoch: 33
+[0.7930232558139535]
+epoch: 34
+[0.7825581395348837]
+epoch: 35
+[0.7930232558139535]
+epoch: 36
+[0.791860465116279]
+epoch: 37
+[0.7941860465116279]
+epoch: 38
+[0.7790697674418605]
+epoch: 39
+[0.7848837209302325]
+traning client 11
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(11) clipart
+40
+epoch: 0
+[0.4148936170212766]
+epoch: 1
+[0.42671394799054374]
+epoch: 2
+[0.46217494089834515]
+epoch: 3
+[0.48699763593380613]
+epoch: 4
+[0.5011820330969267]
+epoch: 5
+[0.4799054373522459]
+epoch: 6
+[0.48699763593380613]
+epoch: 7
+[0.483451536643026]
+epoch: 8
+[0.4787234042553192]
+epoch: 9
+[0.48817966903073284]
+epoch: 10
+[0.4929078014184397]
+epoch: 11
+[0.48936170212765956]
+epoch: 12
+[0.48699763593380613]
+epoch: 13
+[0.4988179669030733]
+epoch: 14
+[0.48108747044917255]
+epoch: 15
+[0.4739952718676123]
+epoch: 16
+[0.46808510638297873]
+epoch: 17
+[0.47754137115839246]
+epoch: 18
+[0.483451536643026]
+epoch: 19
+[0.46808510638297873]
+epoch: 20
+[0.48226950354609927]
+epoch: 21
+[0.4728132387706856]
+epoch: 22
+[0.48226950354609927]
+epoch: 23
+[0.483451536643026]
+epoch: 24
+[0.48699763593380613]
+epoch: 25
+[0.47754137115839246]
+epoch: 26
+[0.483451536643026]
+epoch: 27
+[0.48108747044917255]
+epoch: 28
+[0.46808510638297873]
+epoch: 29
+[0.4716312056737589]
+epoch: 30
+[0.47754137115839246]
+epoch: 31
+[0.4799054373522459]
+epoch: 32
+[0.47044917257683216]
+epoch: 33
+[0.4716312056737589]
+epoch: 34
+[0.4858156028368794]
+epoch: 35
+[0.4858156028368794]
+epoch: 36
+[0.47635933806146574]
+epoch: 37
+[0.4728132387706856]
+epoch: 38
+[0.4739952718676123]
+epoch: 39
+[0.47754137115839246]
+traning client 1
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(1) realworld
+40
+epoch: 0
+[0.7730496453900709]
+epoch: 1
+[0.7825059101654847]
+epoch: 2
+[0.8144208037825059]
+epoch: 3
+[0.8392434988179669]
+epoch: 4
+[0.8416075650118203]
+epoch: 5
+[0.8522458628841607]
+epoch: 6
+[0.8451536643026005]
+epoch: 7
+[0.8569739952718676]
+epoch: 8
+[0.8427895981087471]
+epoch: 9
+[0.8380614657210402]
+epoch: 10
+[0.8427895981087471]
+epoch: 11
+[0.83451536643026]
+epoch: 12
+[0.8416075650118203]
+epoch: 13
+[0.8522458628841607]
+epoch: 14
+[0.8356973995271868]
+epoch: 15
+[0.8380614657210402]
+epoch: 16
+[0.8581560283687943]
+epoch: 17
+[0.8534278959810875]
+epoch: 18
+[0.8416075650118203]
+epoch: 19
+[0.8546099290780141]
+epoch: 20
+[0.8628841607565012]
+epoch: 21
+[0.8605200945626478]
+epoch: 22
+[0.8439716312056738]
+epoch: 23
+[0.8546099290780141]
+epoch: 24
+[0.8522458628841607]
+epoch: 25
+[0.8404255319148937]
+epoch: 26
+[0.8581560283687943]
+epoch: 27
+[0.8475177304964538]
+epoch: 28
+[0.851063829787234]
+epoch: 29
+[0.8486997635933806]
+epoch: 30
+[0.8439716312056738]
+epoch: 31
+[0.8475177304964538]
+epoch: 32
+[0.8581560283687943]
+epoch: 33
+[0.8534278959810875]
+epoch: 34
+[0.8416075650118203]
+epoch: 35
+[0.8546099290780141]
+epoch: 36
+[0.8534278959810875]
+epoch: 37
+[0.8392434988179669]
+epoch: 38
+[0.8451536643026005]
+epoch: 39
+[0.851063829787234]
+traning client 5
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(5) clipart
+40
+epoch: 0
+[0.4432624113475177]
+epoch: 1
+[0.4326241134751773]
+epoch: 2
+[0.4491725768321513]
+epoch: 3
+[0.4739952718676123]
+epoch: 4
+[0.4787234042553192]
+epoch: 5
+[0.46217494089834515]
+epoch: 6
+[0.4716312056737589]
+epoch: 7
+[0.483451536643026]
+epoch: 8
+[0.4905437352245863]
+epoch: 9
+[0.48817966903073284]
+epoch: 10
+[0.5023640661938534]
+epoch: 11
+[0.4929078014184397]
+epoch: 12
+[0.4728132387706856]
+epoch: 13
+[0.4728132387706856]
+epoch: 14
+[0.49763593380614657]
+epoch: 15
+[0.5]
+epoch: 16
+[0.5047281323877069]
+epoch: 17
+[0.4858156028368794]
+epoch: 18
+[0.4799054373522459]
+epoch: 19
+[0.48226950354609927]
+epoch: 20
+[0.483451536643026]
+epoch: 21
+[0.48108747044917255]
+epoch: 22
+[0.4728132387706856]
+epoch: 23
+[0.4858156028368794]
+epoch: 24
+[0.483451536643026]
+epoch: 25
+[0.48817966903073284]
+epoch: 26
+[0.48108747044917255]
+epoch: 27
+[0.483451536643026]
+epoch: 28
+[0.46335697399527187]
+epoch: 29
+[0.466903073286052]
+epoch: 30
+[0.4657210401891253]
+epoch: 31
+[0.4799054373522459]
+epoch: 32
+[0.4491725768321513]
+epoch: 33
+[0.475177304964539]
+epoch: 34
+[0.46217494089834515]
+epoch: 35
+[0.48108747044917255]
+epoch: 36
+[0.46335697399527187]
+epoch: 37
+[0.44680851063829785]
+epoch: 38
+[0.45508274231678486]
+epoch: 39
+[0.44680851063829785]
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Train Epoch (C): 1(53%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 5(9/15)  Epoch Finished Time: 1:09:25.393549  Experiment Finished Time: 1:09:25.393549
+traning client 14
+unsupervised training in progess
+datasplit_len 860
+freezing
+tensor(14) product
+40
+epoch: 0
+[0.7069767441860465]
+epoch: 1
+[0.7244186046511628]
+epoch: 2
+[0.7418604651162791]
+epoch: 3
+[0.7674418604651163]
+epoch: 4
+[0.772093023255814]
+epoch: 5
+[0.7616279069767442]
+epoch: 6
+[0.7895348837209303]
+epoch: 7
+[0.7813953488372093]
+epoch: 8
+[0.7790697674418605]
+epoch: 9
+[0.791860465116279]
+epoch: 10
+[0.7779069767441861]
+epoch: 11
+[0.7837209302325582]
+epoch: 12
+[0.7790697674418605]
+epoch: 13
+[0.7848837209302325]
+epoch: 14
+[0.7848837209302325]
+epoch: 15
+[0.7930232558139535]
+epoch: 16
+[0.7848837209302325]
+epoch: 17
+[0.7906976744186046]
+epoch: 18
+[0.7848837209302325]
+epoch: 19
+[0.7825581395348837]
+epoch: 20
+[0.772093023255814]
+epoch: 21
+[0.7755813953488372]
+epoch: 22
+[0.7767441860465116]
+epoch: 23
+[0.7709302325581395]
+epoch: 24
+[0.7883720930232558]
+epoch: 25
+[0.7848837209302325]
+epoch: 26
+[0.786046511627907]
+epoch: 27
+[0.7790697674418605]
+epoch: 28
+[0.7837209302325582]
+epoch: 29
+[0.7732558139534884]
+epoch: 30
+[0.7825581395348837]
+epoch: 31
+[0.7744186046511627]
+epoch: 32
+[0.7697674418604651]
+epoch: 33
+[0.7662790697674419]
+epoch: 34
+[0.7767441860465116]
+epoch: 35
+[0.7697674418604651]
+epoch: 36
+[0.7697674418604651]
+epoch: 37
+[0.7813953488372093]
+epoch: 38
+[0.7883720930232558]
+epoch: 39
+[0.7802325581395348]
+traning client 8
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(8) realworld
+40
+epoch: 0
+[0.7789598108747045]
+epoch: 1
+[0.776595744680851]
+epoch: 2
+[0.789598108747045]
+epoch: 3
+[0.8191489361702128]
+epoch: 4
+[0.8297872340425532]
+epoch: 5
+[0.8356973995271868]
+epoch: 6
+[0.8297872340425532]
+epoch: 7
+[0.8191489361702128]
+epoch: 8
+[0.8191489361702128]
+epoch: 9
+[0.8274231678486997]
+epoch: 10
+[0.8333333333333334]
+epoch: 11
+[0.8262411347517731]
+epoch: 12
+[0.8274231678486997]
+epoch: 13
+[0.83451536643026]
+epoch: 14
+[0.8380614657210402]
+epoch: 15
+[0.8368794326241135]
+epoch: 16
+[0.8309692671394799]
+epoch: 17
+[0.8404255319148937]
+epoch: 18
+[0.8380614657210402]
+epoch: 19
+[0.8439716312056738]
+epoch: 20
+[0.8333333333333334]
+epoch: 21
+[0.8439716312056738]
+epoch: 22
+[0.8333333333333334]
+epoch: 23
+[0.8286052009456265]
+epoch: 24
+[0.8392434988179669]
+epoch: 25
+[0.8451536643026005]
+epoch: 26
+[0.8321513002364066]
+epoch: 27
+[0.8392434988179669]
+epoch: 28
+[0.8427895981087471]
+epoch: 29
+[0.8392434988179669]
+epoch: 30
+[0.8463356973995272]
+epoch: 31
+[0.8404255319148937]
+epoch: 32
+[0.83451536643026]
+epoch: 33
+[0.8546099290780141]
+epoch: 34
+[0.8309692671394799]
+epoch: 35
+[0.8368794326241135]
+epoch: 36
+[0.8380614657210402]
+epoch: 37
+[0.8321513002364066]
+epoch: 38
+[0.8427895981087471]
+epoch: 39
+[0.8333333333333334]
+traning client 12
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(12) realworld
+40
+epoch: 0
+[0.75177304964539]
+epoch: 1
+[0.7742316784869976]
+epoch: 2
+[0.7966903073286052]
+epoch: 3
+[0.7872340425531915]
+epoch: 4
+[0.7919621749408984]
+epoch: 5
+[0.8156028368794326]
+epoch: 6
+[0.8026004728132388]
+epoch: 7
+[0.8203309692671394]
+epoch: 8
+[0.8250591016548463]
+epoch: 9
+[0.8215130023640662]
+epoch: 10
+[0.8262411347517731]
+epoch: 11
+[0.8309692671394799]
+epoch: 12
+[0.8156028368794326]
+epoch: 13
+[0.8096926713947991]
+epoch: 14
+[0.8203309692671394]
+epoch: 15
+[0.8215130023640662]
+epoch: 16
+[0.817966903073286]
+epoch: 17
+[0.8203309692671394]
+epoch: 18
+[0.8226950354609929]
+epoch: 19
+[0.8167848699763594]
+epoch: 20
+[0.8203309692671394]
+epoch: 21
+[0.8167848699763594]
+epoch: 22
+[0.8144208037825059]
+epoch: 23
+[0.8309692671394799]
+epoch: 24
+[0.8167848699763594]
+epoch: 25
+[0.8333333333333334]
+epoch: 26
+[0.8191489361702128]
+epoch: 27
+[0.8238770685579196]
+epoch: 28
+[0.8286052009456265]
+epoch: 29
+[0.8250591016548463]
+epoch: 30
+[0.8404255319148937]
+epoch: 31
+[0.8226950354609929]
+epoch: 32
+[0.8309692671394799]
+epoch: 33
+[0.8262411347517731]
+epoch: 34
+[0.8250591016548463]
+epoch: 35
+[0.8274231678486997]
+epoch: 36
+[0.817966903073286]
+epoch: 37
+[0.8368794326241135]
+epoch: 38
+[0.83451536643026]
+epoch: 39
+[0.8238770685579196]
+traning client 13
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(13) clipart
+40
+epoch: 0
+[0.41252955082742315]
+epoch: 1
+[0.4160756501182033]
+epoch: 2
+[0.4574468085106383]
+epoch: 3
+[0.46099290780141844]
+epoch: 4
+[0.44680851063829785]
+epoch: 5
+[0.47044917257683216]
+epoch: 6
+[0.4846335697399527]
+epoch: 7
+[0.4858156028368794]
+epoch: 8
+[0.48226950354609927]
+epoch: 9
+[0.47044917257683216]
+epoch: 10
+[0.47635933806146574]
+epoch: 11
+[0.48226950354609927]
+epoch: 12
+[0.47635933806146574]
+epoch: 13
+[0.46808510638297873]
+epoch: 14
+[0.48936170212765956]
+epoch: 15
+[0.4739952718676123]
+epoch: 16
+[0.49527186761229314]
+epoch: 17
+[0.48699763593380613]
+epoch: 18
+[0.46808510638297873]
+epoch: 19
+[0.4645390070921986]
+epoch: 20
+[0.4858156028368794]
+epoch: 21
+[0.4739952718676123]
+epoch: 22
+[0.4716312056737589]
+epoch: 23
+[0.4787234042553192]
+epoch: 24
+[0.48108747044917255]
+epoch: 25
+[0.4799054373522459]
+epoch: 26
+[0.47754137115839246]
+epoch: 27
+[0.46808510638297873]
+epoch: 28
+[0.47044917257683216]
+epoch: 29
+[0.4739952718676123]
+epoch: 30
+[0.47754137115839246]
+epoch: 31
+[0.46926713947990545]
+epoch: 32
+[0.483451536643026]
+epoch: 33
+[0.47635933806146574]
+epoch: 34
+[0.4645390070921986]
+epoch: 35
+[0.46926713947990545]
+epoch: 36
+[0.46099290780141844]
+epoch: 37
+[0.46926713947990545]
+epoch: 38
+[0.46926713947990545]
+epoch: 39
+[0.47635933806146574]
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Train Epoch (C): 1(80%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.030000  ID: 13(13/15)  Epoch Finished Time: 0:24:48.801802  Experiment Finished Time: 0:24:48.801802
+traning client 4
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(4) clipart
+40
+epoch: 0
+[0.4030732860520095]
+epoch: 1
+[0.4397163120567376]
+epoch: 2
+[0.45390070921985815]
+epoch: 3
+[0.44680851063829785]
+epoch: 4
+[0.4858156028368794]
+epoch: 5
+[0.48226950354609927]
+epoch: 6
+[0.48226950354609927]
+epoch: 7
+[0.450354609929078]
+epoch: 8
+[0.48699763593380613]
+epoch: 9
+[0.46335697399527187]
+epoch: 10
+[0.47635933806146574]
+epoch: 11
+[0.47044917257683216]
+epoch: 12
+[0.4728132387706856]
+epoch: 13
+[0.4739952718676123]
+epoch: 14
+[0.475177304964539]
+epoch: 15
+[0.46217494089834515]
+epoch: 16
+[0.4657210401891253]
+epoch: 17
+[0.47635933806146574]
+epoch: 18
+[0.45271867612293143]
+epoch: 19
+[0.46099290780141844]
+epoch: 20
+[0.45508274231678486]
+epoch: 21
+[0.45271867612293143]
+epoch: 22
+[0.45508274231678486]
+epoch: 23
+[0.450354609929078]
+epoch: 24
+[0.4515366430260047]
+epoch: 25
+[0.44680851063829785]
+epoch: 26
+[0.4515366430260047]
+epoch: 27
+[0.450354609929078]
+epoch: 28
+[0.43380614657210403]
+epoch: 29
+[0.4373522458628842]
+epoch: 30
+[0.44208037825059104]
+epoch: 31
+[0.4373522458628842]
+epoch: 32
+[0.4397163120567376]
+epoch: 33
+[0.42671394799054374]
+epoch: 34
+[0.4444444444444444]
+epoch: 35
+[0.43498817966903075]
+epoch: 36
+[0.43498817966903075]
+epoch: 37
+[0.4314420803782506]
+epoch: 38
+[0.42789598108747046]
+epoch: 39
+[0.42789598108747046]
+traning client 0
+unsupervised training in progess
+datasplit_len 846
+freezing
+tensor(0) realworld
+40
+epoch: 0
+[0.7529550827423168]
+epoch: 1
+[0.7730496453900709]
+epoch: 2
+[0.7943262411347518]
+epoch: 3
+[0.8238770685579196]
+epoch: 4
+[0.8297872340425532]
+epoch: 5
+[0.8309692671394799]
+epoch: 6
+[0.8297872340425532]
+epoch: 7
+[0.8262411347517731]
+epoch: 8
+[0.8286052009456265]
+epoch: 9
+[0.83451536643026]
+epoch: 10
+[0.8321513002364066]
+epoch: 11
+[0.8486997635933806]
+epoch: 12
+[0.8286052009456265]
+epoch: 13
+[0.8427895981087471]
+epoch: 14
+[0.8427895981087471]
+epoch: 15
+[0.8333333333333334]
+epoch: 16
+[0.8522458628841607]
+epoch: 17
+[0.8368794326241135]
+epoch: 18
+[0.8392434988179669]
+epoch: 19
+[0.8333333333333334]
+epoch: 20
+[0.8451536643026005]
+epoch: 21
+[0.8416075650118203]
+epoch: 22
+[0.8451536643026005]
+epoch: 23
+[0.8534278959810875]
+epoch: 24
+[0.8546099290780141]
+epoch: 25
+[0.8475177304964538]
+epoch: 26
+[0.8463356973995272]
+epoch: 27
+[0.8475177304964538]
+epoch: 28
+[0.8451536643026005]
+epoch: 29
+[0.8416075650118203]
+epoch: 30
+[0.8534278959810875]
+epoch: 31
+[0.8522458628841607]
+epoch: 32
+[0.8498817966903073]
+epoch: 33
+[0.8404255319148937]
+epoch: 34
+[0.851063829787234]
+epoch: 35
+[0.8486997635933806]
+epoch: 36
+[0.8404255319148937]
+epoch: 37
+[0.8475177304964538]
+epoch: 38
+[0.8498817966903073]
+epoch: 39
+[0.8463356973995272]
+FedAvg with BN params
+testing on client models
+num of active clients : 15
+testing client number: tensor(0)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.9980  Accuracy: 84.6224
+accuracy 84.62244663759468
+accuracy 84.62244663759468
+testing client number: tensor(1)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 1.9651  Accuracy: 85.5635
+accuracy 85.56346109708512
+accuracy 85.56346109708512
+testing client number: tensor(2)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.3966  Accuracy: 81.3922
+accuracy 81.39220545339703
+accuracy 81.39220545339703
+testing client number: tensor(3)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.0727  Accuracy: 84.0946
+accuracy 84.0945604773927
+accuracy 84.0945604773927
+testing client number: tensor(4)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 5.3742  Accuracy: 42.0848
+accuracy 42.0847651775487
+accuracy 42.0847651775487
+testing client number: tensor(5)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 5.0649  Accuracy: 44.6964
+accuracy 44.696449026345924
+accuracy 44.696449026345924
+testing client number: tensor(6)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.7890  Accuracy: 45.8648
+accuracy 45.86483390694495
+accuracy 45.86483390694495
+testing client number: tensor(7)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.5550  Accuracy: 79.5449
+accuracy 79.54494254603586
+accuracy 79.54494254603586
+testing client number: tensor(8)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.0074  Accuracy: 85.4717
+accuracy 85.47165480835437
+accuracy 85.47165480835437
+testing client number: tensor(9)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.4896  Accuracy: 79.3872
+accuracy 79.38724936330391
+accuracy 79.38724936330391
+testing client number: tensor(10)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.6003  Accuracy: 79.5900
+accuracy 79.58999773864674
+accuracy 79.58999773864674
+testing client number: tensor(11)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.9545  Accuracy: 45.9107
+accuracy 45.9106529209622
+accuracy 45.9106529209622
+testing client number: tensor(12)
+clinet_domain realworld
+domain:realworld,id:2,client_domain:realworld
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.0802  Accuracy: 84.5765
+accuracy 84.57654349322927
+accuracy 84.57654349322927
+testing client number: tensor(13)
+clinet_domain clipart
+domain:clipart,id:1,client_domain:clipart
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 4.8679  Accuracy: 46.2085
+accuracy 46.208476511637365
+accuracy 46.208476511637365
+testing client number: tensor(14)
+clinet_domain product
+domain:product,id:0,client_domain:product
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.6414  Accuracy: 78.8691
+accuracy 78.86911466718394
+accuracy 78.86911466718394
+{'product': 398.78350976856746, 'clipart': 224.76517754343914, 'realworld': 424.3286665136562}
+domian product
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.5366  Accuracy: 79.7567
+domian clipart
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 5.0101  Accuracy: 44.9530
+domian realworld
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 2.0247  Accuracy: 84.8657
+69.85849025504417 3.190445494734753
+Model: 2020_art_to_product_clipart_realworld_VITs_00  Test Epoch: 1(100%)  Loss: 3.1904  Accuracy: 69.8585
+saving

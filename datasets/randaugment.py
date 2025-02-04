@@ -165,6 +165,8 @@ def _int_parameter(v, max_v):
 
 
 def rand_augment_pool():
+    # print('rand pool')
+    # exit()
     augs = [(AutoContrast, None, None),
             (Brightness, 1.8, 0.1),
             (Color, 1.8, 0.1),

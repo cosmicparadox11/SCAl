@@ -115,7 +115,7 @@ def runExperiment():
     #data_loader = make_data_loader(server_dataset, 'global')
     data_loader_sup = make_data_loader_DA(client_dataset_sup, 'global')
     print(client_dataset_sup['test'])
-    exit()
+    # exit()
     # data_loader_unsup = make_data_loader_DA(client_dataset_unsup, 'global')
 
     ####

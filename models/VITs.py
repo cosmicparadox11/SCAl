@@ -206,15 +206,16 @@ class ResNet(nn.Module):
         
 def ResNet50(num_classes, channels=3):
     return ResNet(Bottleneck, [3,4,6,3], num_classes, channels)
+
 class Embedding(nn.Module):
     
     def __init__(self, feature_dim, embed_dim=256, type="ori"):
     
         super(Embedding, self).__init__()
-        self.bn = nn.BatchNorm1d(embed_dim, affine=True)
+        # self.bn = nn.BatchNorm1d(embed_dim, affine=True)
         # self.bn = torch.nn.GroupNorm(2, embed_dim, affine=True)
-        self.relu = nn.ReLU(inplace=True)
-        self.dropout = nn.Dropout(p=0.5)
+        # self.relu = nn.ReLU(inplace=True)
+        # self.dropout = nn.Dropout(p=0.5)
         self.bottleneck = nn.Linear(feature_dim, embed_dim)
         self.bottleneck.apply(init_weights)
         self.type = type
@@ -223,6 +224,8 @@ class Embedding(nn.Module):
         # print(self.bottleneck,x.shape)
         x = self.bottleneck(x)
         if self.type == "bn":
+            # print('true')
+            # exit()
             x = self.bn(x)
         return x
 
@@ -284,6 +287,21 @@ class Classifier(nn.Module):
     def forward(self, x):
         x = self.fc(x)
         return x
+class per_Classifier(nn.Module):
+    def __init__(self, embed_dim, class_num, type="linear"):
+        super(Classifier, self).__init__()
+        
+        self.type = type
+        if type == 'wn':
+            self.fc = nn.utils.weight_norm(nn.Linear(embed_dim, class_num), name="weight")
+            self.fc.apply(init_weights)
+        else:
+            self.fc = nn.Linear(embed_dim, class_num)
+            self.fc.apply(init_weights)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return x
 
 class SFDA(nn.Module):
     
@@ -297,25 +315,34 @@ class SFDA(nn.Module):
         self.backbone_arch = cfg['backbone_arch'] # resnet101
         self.embed_feat_dim = cfg['embed_feat_dim'] # 256
         self.class_num = cfg['target_size']          # 12 for VisDA
+        
 
-        if "vit-small" in self.backbone_arch:   
-            # self.backbone_layer = ResBase(self.backbone_arch) 
-            self.backbone_layer = timm.create_model("vit_small_patch16_224", pretrained=True)
+        if "vit-small" in self.backbone_arch:  
+            self.backbone_layer = timm.create_model("vit_small_patch16_224", pretrained=True) 
             self.backbone_layer.head = nn.Identity()
-            # self.backbone_layer = ResNet(Bottleneck, [3,4,6,3], self.class_num)
+            self.backbone_feat_dim = 384
+        elif "vit-b" in self.backbone_arch:
+            self.backbone_layer = timm.create_model('vit_base_patch16_224_in21k', pretrained=True)
+            self.backbone_layer.head = nn.Identity()
+            self.backbone_feat_dim = 768
+            
         elif "vgg" in self.backbone_arch:
             self.backbone_layer = VGGBase(self.backbone_arch)
         else:
             raise ValueError("Unknown Feature Backbone ARCH of {}".format(self.backbone_arch))
         
-        self.backbone_feat_dim = 384
+        
+        # self.backbone_feat_dim = 384
         if cfg['vit_bn']:
             self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
             self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
         else:
+            # print('true')
+            # exit()
             self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim)
             # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim)
-            
+            if cfg['add_ln']:
+                self.layer_norm = nn.LayerNorm(self.embed_feat_dim)
             # self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
             self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num)
             # self.class_layer = Classifier(self.backbone_feat_dim, class_num=self.class_num)
@@ -331,15 +358,21 @@ class SFDA(nn.Module):
         # input_imgs [B, 3, H, W]
         backbone_feat = self.backbone_layer(input_imgs)
         # print(backbone_feat.shape)
+        # exit()
         embed_feat = self.feat_embed_layer(backbone_feat)
-        
+        if cfg['add_ln']:
+            # print('add_ln')
+            # print(embed_feat.shape)
+            # exit()
+            embed_feat = self.layer_norm(embed_feat)
         cls_out = self.class_layer(embed_feat)
         # cls_out = self.class_layer(backbone_feat)
         if apply_softmax:
             cls_out = torch.softmax(cls_out, dim=1)
         else:
             pass
-        
+        if cfg['cls_ps']:
+            return backbone_feat,embed_feat, cls_out
         return embed_feat, cls_out
         # return backbone_feat,cls_out
     def forward(self, input):
@@ -386,7 +419,11 @@ class SFDA(nn.Module):
             _,output['target']=self.f(input['data'])
 
         else:
-            _,output['target'] = self.f(input['data'])
+            if cfg['cls_ps']:
+                _,_,output['target'] = self.f(input['data'])
+            else:
+                output['embd_feat'],output['target'] = self.f(input['data'])
+                _,output['target'] = self.f(input['data'])
         # output['target']= self.f(input['data'])
         
         if 'loss_mode' in input and 'test' not in input:
@@ -467,16 +504,45 @@ class SFDA(nn.Module):
                 print(type(aug_output))
                 output['loss'] = loss_fn(aug_output, input['target'].detach())
             elif 'bmd' in input['loss_mode']:
-                # print(input['augw'])
+                # print(input['augw'].shape)
+                # print(input['id'].shape)
+                # print(input['target'].shape)
                 # print(input.keys())
-                f,x =self.f(input['augw'])
+                # exit()
+                # exit()
+                if cfg['shot3x']:
+                    # input['augw'] = torch.cat((input['augw'], input['augs'], input['augw']), dim=0)
+                    # input['augw'] = torch.cat((input['augw'], input['augs']), dim=0)
+                    # input['id'] = torch.cat((input['id'], input['id']), dim=0)
+                    # input['target'] = torch.cat((input['target'], input['target']), dim=0)
+                    input['augw'] = torch.cat((input['augw'], input['augw1'],input['augw2']), dim=0)
+                    input['id'] = torch.cat((input['id'], input['id'],input['target']), dim=0)
+                    input['target'] = torch.cat((input['target'], input['target'],input['target']), dim=0)
+                # print(input.keys())
+                # print(input['augw'].shape)
+                # print(input['id'].shape)
+                # print(input['target'].shape)
+                # exit()
+                if cfg['cls_ps']:
+                    p,f,x =self.f(input['augw'])
+                else:
+                    f,x =self.f(input['augw'])
                 if cfg['add_fix']==1:
-                    _,x_s = self.f(input['augs'])
+                    if cfg['cls_ps']:
+                        _,_,x_s = self.f(input['augs'])
+                    else:   
+                        _,x_s = self.f(input['augs'])
                 # return f,x
                 if cfg['add_fix']==0:
-                    return f,torch.softmax(x,dim=1)
+                    if cfg['cls_ps']:
+                        return p,f,torch.softmax(x,dim=1)
+                    else:
+                        return f,torch.softmax(x,dim=1)
                 elif cfg['add_fix']==1 and cfg['logit_div'] ==0:
-                    return f,torch.softmax(x,dim=1),x_s
+                    if cfg['cls_ps']:
+                        return p,f,torch.softmax(x,dim=1),x_s
+                    else:
+                        return f,torch.softmax(x,dim=1),x_s
                 elif cfg['add_fix']==1 and cfg['logit_div'] ==1:
                     return f,torch.softmax(x,dim=1),x,x_s
                     # if cfg['logit_div'] == 1:
@@ -484,7 +550,14 @@ class SFDA(nn.Module):
                     #     x=torch.softmax(x/2,dim=1)
                     #     return f,x,x_s
                     # else:
-                        
+            
+            elif 'crco' in input['loss_mode']:
+                # print('running crco',input.keys())
+                f,x =self.f(input['augw'])
+                f_s1,x_s1 =self.f(input['augs1'])
+                f_s2,x_s2 =self.f(input['augs2'])
+                return f,x,f_s1,x_s1,f_s2,x_s2
+                      
             elif 'ladd' in input['loss_mode']:
                 # print(input['augw'])
                 # print(input.keys())

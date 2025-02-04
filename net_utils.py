@@ -35,7 +35,7 @@ def Entropy(input_):
     entropy = torch.sum(entropy, dim=1)
     return entropy 
 
-def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, confu_mat_flag=False):
+def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, confu_mat_flag=False, adpt_thr = None):
     model.eval()
     emd_feat_stack = []
     cls_out_stack = []
@@ -175,7 +175,8 @@ def init_multi_cent_psd_label(model, dataloader, flag=False, flag_NRC=False, con
         else:
             return feat_multi_cent.cpu(), all_psd_label.cpu(), emd_feat_out_.cpu(),all_cls_out.cpu()
 
-def init_multi_cent_psd_label_crco(model,tech_model, dataloader, flag=False, flag_NRC=False, confu_mat_flag=False):
+# def init_multi_cent_psd_label_crco(model,tech_model, dataloader, flag=False, flag_NRC=False, confu_mat_flag=False):
+def init_multi_cent_psd_label_crco(model, dataloader, flag=False, flag_NRC=False, confu_mat_flag=False):
     model.eval()
     emd_feat_stack = []
     cls_out_stack = []
@@ -196,14 +197,15 @@ def init_multi_cent_psd_label_crco(model,tech_model, dataloader, flag=False, fla
             if cfg['add_fix']==0:
                 embed_feat, cls_out = model(input)
             elif cfg['add_fix'] ==1 and cfg['logit_div'] == 0:
-                embed_feat, cls_out,_ = model(input)
+                # embed_feat, cls_out,_ = model(input)
+                embed_feat,cls_out,f_s1,strong1_logit,f_s2,strong2_logit = model(input)
             elif cfg['add_fix'] ==1 and cfg['logit_div'] == 1:
                 embed_feat, cls_out,_,_ = model(input)
             # if i ==1:
             #     print(embed_feat)
-        f_weak,weak_logit,f_s1,strong1_logit,f_s2,strong2_logit = model(input)
+        
  
-        t_f_weak,t_weak_logit,t_f_s1,t_strong1_logit,t_f_s2,t_strong2_logit = tech_model(input)
+        # t_f_weak,t_weak_logit,t_f_s1,t_strong1_logit,t_f_s2,t_strong2_logit = tech_model(input)
         
         emd_feat_stack.append(embed_feat)
         cls_out_stack.append(cls_out)
@@ -240,71 +242,71 @@ def init_multi_cent_psd_label_crco(model,tech_model, dataloader, flag=False, fla
     # print(topk_num)
     # multi_cent_num = 3 if 3<=topk_num else 1
     
-    multi_cent_num = 1
-    # print(multi_cent_num)
-    feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num, cfg['embed_feat_dim'])),cfg['device'])
-    # feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num,2048)),cfg['device'])
-    faiss_kmeans = faiss.Kmeans(cfg['embed_feat_dim'], multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)
-    # faiss_kmeans = faiss.Kmeans(2048, multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)
-    # print(faiss_kmeans)
-    iter_nums = 2
-    for iter in range(iter_nums):
-        # print(iter)
-        for cls_idx in range(cfg['target_size']):
-            if iter == 0:
-                # We apply TOP-K-Sampling strategy to obtain class balanced feat_cent initialization.
-                feat_samp_idx = torch.topk(all_cls_out[:, cls_idx], topk_num)[1]
-            else:
-                # After the first iteration, we make use of the psd_label to construct feat cent.
-                # feat_samp_idx = (all_psd_label == cls_idx)
-                feat_samp_idx = torch.topk(feat_dist[:, cls_idx], topk_num)[1]
+    # multi_cent_num = 1
+    # # print(multi_cent_num)
+    # feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num, cfg['embed_feat_dim'])),cfg['device'])
+    # # feat_multi_cent = to_device(torch.zeros((cfg['target_size'], multi_cent_num,2048)),cfg['device'])
+    # faiss_kmeans = faiss.Kmeans(cfg['embed_feat_dim'], multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)
+    # # faiss_kmeans = faiss.Kmeans(2048, multi_cent_num, niter=100, verbose=False, min_points_per_centroid=1)
+    # # print(faiss_kmeans)
+    # iter_nums = 2
+    # for iter in range(iter_nums):
+    #     # print(iter)
+    #     for cls_idx in range(cfg['target_size']):
+    #         if iter == 0:
+    #             # We apply TOP-K-Sampling strategy to obtain class balanced feat_cent initialization.
+    #             feat_samp_idx = torch.topk(all_cls_out[:, cls_idx], topk_num)[1]
+    #         else:
+    #             # After the first iteration, we make use of the psd_label to construct feat cent.
+    #             # feat_samp_idx = (all_psd_label == cls_idx)
+    #             feat_samp_idx = torch.topk(feat_dist[:, cls_idx], topk_num)[1]
                 
-            feat_cls_sample = all_emd_feat[feat_samp_idx, :].cpu().numpy()
-            # print(feat_cls_sample.shape)
-            # print(feat_cls_sample)
-            faiss_kmeans.train(feat_cls_sample)
-            feat_multi_cent[cls_idx, :] = to_device(torch.from_numpy(faiss_kmeans.centroids),cfg['device'])
+    #         feat_cls_sample = all_emd_feat[feat_samp_idx, :].cpu().numpy()
+    #         # print(feat_cls_sample.shape)
+    #         # print(feat_cls_sample)
+    #         faiss_kmeans.train(feat_cls_sample)
+    #         feat_multi_cent[cls_idx, :] = to_device(torch.from_numpy(faiss_kmeans.centroids),cfg['device'])
             
-        feat_multi_cent = to_device(feat_multi_cent,cfg['device'])
-        all_emd_feat = to_device(all_emd_feat,cfg['device'])
-        feat_dist = torch.einsum("cmk, nk -> ncm", feat_multi_cent, all_emd_feat) #[N,C,M]
-        feat_dist, _ = torch.max(feat_dist, dim=2)  # [N, C]
-        feat_dist = torch.softmax(feat_dist, dim=1) # [N, C]
+    #     feat_multi_cent = to_device(feat_multi_cent,cfg['device'])
+    #     all_emd_feat = to_device(all_emd_feat,cfg['device'])
+    #     feat_dist = torch.einsum("cmk, nk -> ncm", feat_multi_cent, all_emd_feat) #[N,C,M]
+    #     feat_dist, _ = torch.max(feat_dist, dim=2)  # [N, C]
+    #     feat_dist = torch.softmax(feat_dist, dim=1) # [N, C]
             
-        _, all_psd_label = torch.max(feat_dist, dim=1)
-        # print(all_psd_label)
-        acc = torch.sum(all_psd_label == all_gt_label) / len(all_gt_label)
-        acc_list.append(acc)
-        # print(acc_list)
-    # log = "acc:" + " --> ".join("{:.3f}".format(acc) for acc in acc_list)
-    # psd_confu_mat = confusion_matrix(all_gt_label.cpu(), all_psd_label.cpu())
-    # psd_acc_list = psd_confu_mat.diagonal()/psd_confu_mat.sum(axis=1) * 100
-    # psd_acc = psd_acc_list.mean()
-    # psd_acc_str = "{:.2f}        ".format(psd_acc) + " ".join(["{:.2f}".format(i) for i in psd_acc_list])
+    #     _, all_psd_label = torch.max(feat_dist, dim=1)
+    #     # print(all_psd_label)
+    #     acc = torch.sum(all_psd_label == all_gt_label) / len(all_gt_label)
+    #     acc_list.append(acc)
+    #     # print(acc_list)
+    # # log = "acc:" + " --> ".join("{:.3f}".format(acc) for acc in acc_list)
+    # # psd_confu_mat = confusion_matrix(all_gt_label.cpu(), all_psd_label.cpu())
+    # # psd_acc_list = psd_confu_mat.diagonal()/psd_confu_mat.sum(axis=1) * 100
+    # # psd_acc = psd_acc_list.mean()
+    # # psd_acc_str = "{:.2f}        ".format(psd_acc) + " ".join(["{:.2f}".format(i) for i in psd_acc_list])
     
-    # if args.test:
-    #     print(log)
-    # else:
-    #     print(log)
-    #     args.log_file.write(log+"\n")
-    #     args.log_file.flush()
+    # # if args.test:
+    # #     print(log)
+    # # else:
+    # #     print(log)
+    # #     args.log_file.write(log+"\n")
+    # #     args.log_file.flush()
         
-    # if args.dataset == "VisDA":
-    #     print(psd_acc_str)
-    # del optimizer
-    # del optimizer_
-    # del model
+    # # if args.dataset == "VisDA":
+    # #     print(psd_acc_str)
+    # # del optimizer
+    # # del optimizer_
+    # # del model
     
-    # print(feat_dist.get_device() )
-    # # print(acc_list.get_device() )
-    # # print(feat_cls_sample.device)
-    # # print(emd_feat_stack.get_device())
-    # # print(cls_out_stack.get_device())
-    # # print(gt_label_stack.get_device())
-    # # print(faiss_kmeans.get_device())
-    # exit()
+    # # print(feat_dist.get_device() )
+    # # # print(acc_list.get_device() )
+    # # # print(feat_cls_sample.device)
+    # # # print(emd_feat_stack.get_device())
+    # # # print(cls_out_stack.get_device())
+    # # # print(gt_label_stack.get_device())
+    # # # print(faiss_kmeans.get_device())
+    # # exit()
     gc.collect()
-    del feat_dist
+    # del feat_dist
     # print(feat_multi_cent.get_device() )
     # exit()
     torch.cuda.empty_cache()
@@ -316,7 +318,8 @@ def init_multi_cent_psd_label_crco(model,tech_model, dataloader, flag=False, fla
         if confu_mat_flag:
             return feat_multi_cent, all_psd_label, psd_confu_mat,all_cls_out
         else:
-            return feat_multi_cent.cpu(), all_psd_label.cpu(), emd_feat_out_.cpu(),all_cls_out.cpu()
+            # return feat_multi_cent.cpu(), all_psd_label.cpu(), emd_feat_out_.cpu(),all_cls_out.cpu()
+            return all_cls_out.cpu(), all_psd_label.cpu(), emd_feat_out_.cpu(),all_cls_out.cpu()
 def get_final_centroids(model,test_data_loader,pred_label):
     start_test = True
     with torch.no_grad():
@@ -357,14 +360,15 @@ def get_final_centroids(model,test_data_loader,pred_label):
     initc = initc / (1e-8 + aff.sum(axis=0)[:,None])    
     return initc
 
-def init_psd_label_shot_icml(model, dataloader):
+def init_psd_label_shot_icml(model, dataloader,domain=None, id = None, adpt_thr = None,client_id = None):
     args_distance = "cosine"
     args_epsilon = 1e-5
     args_threshold = 0.3
     start_test = True
     args_class_num = cfg['target_size']
     model.eval()
-    
+    if cfg['labels_count']:
+        all_labels = []
     with torch.no_grad():
         iter_test = iter(dataloader)
         #for _ in tqdm(range(len(dataloader)), ncols=60):
@@ -374,19 +378,44 @@ def init_psd_label_shot_icml(model, dataloader):
             #print("data:",data.keys())
             #inputs = data['augw']
             labels = data['target']
+            if cfg['shot3x']:
+                # labels = torch.cat((labels,labels),dim =0 )
+                labels = labels+labels+labels
+            if cfg['labels_count']:
+                all_labels.extend(labels)
             input = collate(data)
             input_size = input['data'].size(0)
             # print(input_size)
             input['loss_mode'] = cfg['loss_mode']
             input = to_device(input, cfg['device'])
-            
+            # print(input['target'].shape)
             # feas, outputs,_ = model(input)
+            # if cfg['add_fix']==0:
+            #     feas, outputs = model(input)
+            # elif cfg['add_fix'] ==1 and cfg['logit_div'] == 0:
+            #     feas, outputs,_ = model(input)
+            # elif cfg['add_fix'] ==1 and cfg['logit_div'] == 1:
+            #     feas, outputs,_,_ = model(input)
+            
             if cfg['add_fix']==0:
-                feas, outputs = model(input)
-            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 0:
-                feas, outputs,_ = model(input)
-            elif cfg['add_fix'] ==1 and cfg['logit_div'] == 1:
-                feas, outputs,_,_ = model(input)
+                if cfg['cls_ps']:
+                    # cls_ps.train()
+                    p,feas, outputs = model(input)
+                    # ps_cls = cls_ps(p)
+                else:
+                    feas, outputs = model(input)
+            elif cfg['add_fix']==1 and cfg['logit_div'] ==0:
+                if cfg['cls_ps']:
+                    p,feas, outputs,x_s = model(input)
+                    # ps_cls = cls_ps(p)
+                else:
+                    feas, outputs,x_s = model(input)
+        
+            elif cfg['add_fix']==1 and cfg['logit_div'] ==1:
+                feas, outputs,x,x_s = model(input)
+                # x_in = torch.softmax(x/cfg['temp'],dim =1)
+            # print(input['target'].shape)
+            # exit()
             if start_test:
                 all_fea = feas.float().cpu()
                 all_output = outputs.float().cpu()
@@ -399,9 +428,94 @@ def init_psd_label_shot_icml(model, dataloader):
                 all_label = torch.cat((all_label, labels.float()), 0)
 
     ent = torch.sum(-all_output * torch.log(all_output + args_epsilon), dim=1)
+    # print('entropy',ent)
+    # hi_pred,lab = torch.max(all_output,1)
+    # print(hi_pred)
+    if cfg['labels_count']:
+        class_count = []
+        for i in range(cfg['target_size']):
+            count = all_labels.count(i)
+            class_count.append(count)
+            
+            
+        # print(class_count)
+        tag = cfg['model_tag']
+        tag_ = f'client{client_id}_domain{domain}_tag'
+        f = open(tag_,'a')
+        f.write(" ".join(str(v) for v in class_count))
+        f.close()
+        return None,None
+        # exit()
+    if adpt_thr:
+        entropy_mean = ent.mean().item()
+        entropy_median = ent.median().item()
+        entropy_std = ent.std().item()
+        entropy_iqr = np.percentile(ent, 75) - np.percentile(ent, 25)
+        # skewness_measure = (entropy_mean - entropy_median) / entropy_iqr
+        # skewness_measure = (entropy_mean - entropy_median) / entropy_std
+        mean_median_diff = entropy_mean - entropy_median
+        # new_threshold = 0.6+((skewness_measure+1)*(0.99-0.6)/2)
+        # Min-max scaling with clipping
+        # skewness_clipped = max(-0.1, min(skewness_measure, 0.15))  # Clip skewness between -1.5 and 1.5
+        # # normalized_skewness = 0.7 + ((skewness_clipped + 1) * (0.95 - 0.7)) / 2  # Map to [0.7, 0.95]
+        # new_threshold = 0.8+skewness_clipped
+        ##########################################################
+        # Calculate Fisher's skewness
+        n = len(ent)
+        third_moment = ((ent - entropy_mean) ** 3).mean().item()
+        second_moment = ((ent - entropy_mean) ** 2).mean().item()
+        # fisher_skewness = third_moment / (second_moment ** 1.5)
+        fisher_skewness = 3*(entropy_mean - entropy_median) / entropy_std
+        
+        # Clipping Fisher's skewness to a set range for stability
+        skewness_clipped = max(-0.1, min(fisher_skewness, 0.15))  # Clip between -0.1 and 0.15
+
+        # Adaptive threshold using Fisher's skewness
+        new_threshold = 0.8 + skewness_clipped
+        ##########################################################
+        # print('dist',mean_median_diff)
+        # import matplotlib.pyplot as plt
+        # import seaborn as sns
+        # plt.figure(figsize=(10, 6))
+        # # plt.hist(ent, bins=30, color='dodgerblue', alpha=0.7)
+        # sns.kdeplot(ent, fill=True, color='dodgerblue', alpha=0.6, label='Density')
+
+        # # plt.hist(entropy.numpy(), bins=30, color='dodgerblue', alpha=0.7)
+        # plt.axvline(entropy_mean, color='red', linestyle='dashed', linewidth=2, label=f'Mean: {entropy_mean:.2f}')
+        # plt.axvline(entropy_median, color='green', linestyle='dashed', linewidth=2, label=f'Median: {entropy_median:.2f}')
+
+        # # Annotate the distance between mean and median
+        # # plt.text(
+        # #     0.05, 0.9, f'|Mean - Median| = {mean_median_diff:.2f}', 
+        # #     transform=plt.gca().transAxes, fontsize=12, color='black'
+        # # )
+        # plt.text(
+        #             0.05, 0.9, f'Mean - Median = {mean_median_diff:.2f}\n'
+        #                     f'Std Dev = {entropy_std:.2f}\n'
+        #                     f'IQR = {entropy_iqr:.2f}\n'
+        #                     # f'Skewness Measure = {skewness_measure:.2f}\n'
+        #                     f'Skewness Measure = {fisher_skewness:.2f}\n'
+        #                     f'threshold = {new_threshold:.2f}'
+        #                     ,
+        #             transform=plt.gca().transAxes, fontsize=12, color='black'
+        #         )
+        # plt.xlabel('Entropy', fontsize=14)
+        # # plt.ylabel('Frequency', fontsize=14)
+        # plt.ylabel('Density', fontsize=14)
+        # # plt.title(f'Entropy Distribution of Model Predictions of client {id}:{domain}', fontsize=16)
+        # # plt.title(f'Entropy Density of Model Predictions of client {id}:{domain}', fontsize=16)
+        # print('saving plot')
+        # plt.legend(loc='upper right')
+        # plt.grid(True)
+        # tag = cfg['model_tag']
+        # plt.savefig(f'./Entropy Densityof Model Predictions of client {id}:{domain}_{tag}.jpg', dpi=300, bbox_inches='tight')
+        # # plt.grid(True)
+    else:
+        new_threshold = cfg['threshold']
     unknown_weight = 1 - ent / np.log(args_class_num)
     _, predict = torch.max(all_output, 1)
-
+    # print(predict.shape,all_label.shape)
+    # exit()
     accuracy = torch.sum(torch.squeeze(predict).float() == all_label).item() / float(all_label.size()[0])
     acc_list = [accuracy]
     print(acc_list)
@@ -432,26 +546,50 @@ def init_psd_label_shot_icml(model, dataloader):
         pred_label = dd.argmin(axis=1)
         pred_label = labelset[pred_label]
 
-    # acc = np.sum(pred_label == all_label.float().numpy()) / len(all_fea)
-    # acc_list.append(acc)
+    acc = np.sum(pred_label == all_label.float().numpy()) / len(all_fea)
+    acc_list.append(acc)
     # log_str = 'Accuracy = {:.2f}% -> {:.2f}%'.format(accuracy * 100, acc * 100)
-    # log_str = "acc:" + " --> ".join("{:.3f}".format(acc) for acc in acc_list)
+    log_str = "acc:" + " --> ".join("{:.3f}".format(acc) for acc in acc_list)
     
-    # psd_confu_mat = confusion_matrix(pred_label, all_label.float().numpy())
+    psd_confu_mat = confusion_matrix(pred_label, all_label.float().numpy())
+    with np.errstate(divide='ignore', invalid='ignore'):
+        psd_acc_list = np.diag(psd_confu_mat) / psd_confu_mat.sum(axis=1) * 100
+        psd_acc_list = np.nan_to_num(psd_acc_list,0)  # Convert NaNs to zero or any number
     # psd_acc_list = psd_confu_mat.diagonal()/psd_confu_mat.sum(axis=1) * 100
-    # psd_acc = psd_acc_list.mean()
-    # psd_acc_str = "{:.2f}        ".format(psd_acc) + " ".join(["{:.2f}".format(i) for i in psd_acc_list])
+    psd_acc = psd_acc_list.mean()
+    psd_acc_str = "{:.2f}=".format(psd_acc) + " ".join(["{:.2f}".format(i) for i in psd_acc_list])
     
-    # #if not args_test:
-    # #    args.log_file.write(log_str + '\n')
-    # #    args.log_file.flush()
+    #if not args_test:
+    #    args.log_file.write(log_str + '\n')
+    #    args.log_file.flush()
     
-    
+    # Define the file name
+    # name_ = './'+ cfg['model_tag']+ 'accu_list1.txt'
+    file_name = './'+ cfg['model_tag']+ 'accu_list.txt'
+
+    # Open the file in write mode, write the string, and flush the buffer
+    with open(file_name, "a") as file:
+        file.write(log_str+'\n')
+        file.flush()  # Flush the internal buffer
+    # file_name = "./accu_list2.txt"
+    file_name = './'+ cfg['model_tag']+ 'psd_acc.txt'
+
+    # Open the file in write mode, write the string, and flush the buffer
+    with open(file_name, "a") as file:
+        file.write(str(psd_acc)+'\n')
+        file.flush()  # Flush the internal buffer
+        
+    file_name = './'+ cfg['model_tag']+ 'psd_acc_CM.txt'
+
+    # Open the file in write mode, write the string, and flush the buffer
+    with open(file_name, "a") as file:
+        file.write(psd_acc_str+'\n')
+        file.flush()  # Flush the internal buffer
     # print(log_str+'\n')
     # print(psd_acc_str)
     # return None, pred_label.astype('int')
 
-    return torch.from_numpy(pred_label.astype('int')).cuda()
+    return torch.from_numpy(pred_label.astype('int')).cuda(),new_threshold
 
 
 def init_psd_label_shot_icml_up(model_c, dataloader,client,id,domain):

@@ -24,6 +24,7 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
               'OfficeHome': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'OfficeCaltech': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'DomainNet': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+              'DomainNetS': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'VisDA': ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
               'SYN32': ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))}
 
@@ -58,7 +59,7 @@ def fetch_dataset(data_name, domain=None):
             transforms.Resize(32),
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
-    elif data_name in ['office31', 'OfficeHome','OfficeCaltech','DomainNet']:
+    elif data_name in ['office31', 'OfficeHome','OfficeCaltech','DomainNet','DomainNetS']:
         # print(domain)
         print('data name',data_name)
         print('domain',domain)
@@ -328,6 +329,47 @@ def fetch_dataset_full_test(data_name, domain=None):
         # target_size_ = dataset['train'].target_size
         # dataset['test'] = ConcatDataset([dataset['train'],dataset['test']])
         # dataset['test'].target_size = target_size_
+        
+    elif data_name in ['DomainNetS']:
+        # print(domain)
+        # root = './data/{}'.format(data_name)
+        # root = './data/DomainNet'
+        dataset['train'] = eval('datasets.{}_Full(root=root, domain=domain, split=\'train\', '
+                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        
+
+        
+        if cfg['test_10_crop']:
+            crop_list = image_test_10crop()
+            for i in range(10):
+                dataset['test'] = eval('[datasets.{}_Full(root=root, domain=domain, split=\'test\', '
+                               'transform=crop_list[i]) for i in range(10)]'.format(data_name))
+        else:
+            print('test_10crop disabled')
+            resize_size = 256
+            crop_size = 224
+            dataset['test'] = eval('datasets.{}_Full(root=root, domain=domain, split=\'test\', '
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+            # dataset['test'] = ConcatDataset([dataset['train'],dataset['test']])
+            print('test len with 100 percent test:',len(dataset['test']))
+            dataset['test'].transform = datasets.Compose(
+                [
+                    # transforms.CenterCrop(224),
+                    # transforms.ToTensor(),
+                    # transforms.Normalize(*data_stats[data_name])
+                    # # transforms.RandomResizedCrop(224)
+                    # ResizeImage(resize_size),
+                    transforms.Resize((resize_size, resize_size)),
+                    # transforms.RandomResizedCrop(crop_size),
+                    # transforms.RandomHorizontalFlip(),
+                    transforms.CenterCrop(crop_size),
+                    transforms.ToTensor(),
+                    transforms.Normalize(*data_stats[data_name])
+                ]
+
+            )
+        
+    
     elif data_name in ['VisDA']:
         # print(domain)
         print('data name',data_name)
@@ -922,7 +964,7 @@ class FixTransform(object):
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
             ])
-        elif data_name in ['office31', 'OfficeHome','VisDA','OfficeCaltech','DomainNet']:
+        elif data_name in ['office31', 'OfficeHome','VisDA','OfficeCaltech','DomainNet','DomainNetS']:
             resize_size = 256
             crop_size = 224
             self.normal = transforms.Compose(
@@ -971,10 +1013,24 @@ class FixTransform(object):
     def __call__(self, input):
         # print(input['data'])
         # exit()
+        # print('dif  augment')
         data = self.normal(input['data'])
         augw = self.weak(input['data'])
         augs = self.strong(input['data'])
-        input = {**input, 'data': data, 'augw': augw, 'augs': augs}
+        # if True:
+        #     augs = 0.9*self.strong(input['data'])+0.1*self.strong(input['data'])
+        
+        if cfg['run_crco']:
+            augs2 = self.strong(input['data'])
+            input = {**input, 'data': data, 'augw': augw, 'augs1': augs,'augs2':augs2}
+        elif cfg['shot3x']:
+            augw1 = self.weak((input['data']))
+            augw2 = self.weak((input['data']))
+            
+            input = {**input, 'data': data, 'augw': augw, 'augw1': augw1,'augw2':augw2}
+        else:
+            input = {**input, 'data': data, 'augw': augw, 'augs': augs}
+        # input = {**input, 'data': data, 'augw': augw, 'augs': augs}
         # input = {**input, 'data': data, 'augw': data, 'augs': data}
         # input = {**input, 'data': data, 'augw': augw}
         # print(data.shape,augw.shape,augs.shape)

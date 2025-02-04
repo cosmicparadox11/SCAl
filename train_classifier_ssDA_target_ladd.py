@@ -39,12 +39,12 @@ def main():
     cfg['unsup_list'] = cfg['unsup_doms'].split('-')
     print(cfg['unsup_list'])
     exp_num = cfg['control_name'].split('_')[0]
-    if cfg['domain_s'] in ['amazon','dslr','webcam']:
-        cfg['data_name'] = 'office31'
-    elif cfg['domain_s'] in ['art', 'clipart','product','realworld']:
-        cfg['data_name'] = 'OfficeHome'
-    elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
-        cfg['data_name'] = cfg['domain_s']
+    # if cfg['domain_s'] in ['amazon','dslr','webcam']:
+    #     cfg['data_name'] = 'office31'
+    # elif cfg['domain_s'] in ['art', 'clipart','product','realworld']:
+    #     cfg['data_name'] = 'OfficeHome'
+    # elif cfg['domain_s'] in ['MNIST','SVHN','USPS']:
+    #     cfg['data_name'] = cfg['domain_s']
     for i in range(cfg['num_experiments']):
         cfg['domain_tag'] = '_'.join([x for x in cfg['unsup_list'] if x])
         model_tag_list = [str(seeds[i]), cfg['domain_s'],'to',cfg['domain_tag'], cfg['model_name'],exp_num]
@@ -94,7 +94,7 @@ def runExperiment():
             cfg['data_name_sup'] = 'OfficeHome'
             client_dataset_unsup[i] = fetch_dataset_full_test(cfg['data_name_unsup'],domain=domain)
             # client_dataset_unsup[i] = fetch_dataset(cfg['data_name_unsup'],domain=domain)
-            # print(client_dataset_unsup[i])
+            print(client_dataset_unsup[i])
     ##############
     # exit()
     # print(client_dataset_unsup.keys())
@@ -213,9 +213,9 @@ def runExperiment():
         # print(len(data_split_unsup))
         ####
         data_split_unsup = {}
-        print(split_len)
+        # print(split_len)
         for j,(domain_id,dataset_unsup) in enumerate(client_dataset_unsup.items()):
-            print(f'domain id :{domain_id},j:{j}')
+            # print(f'domain id :{domain_id},j:{j}')
             data_split_unsup[domain_id] = split_class_dataset_DA(dataset_unsup,cfg['data_split_mode'],split_len[j])
             # print(data_split_unsup[domain_id])
         # for k,v in data_split_unsup.items():

@@ -305,11 +305,11 @@ class SFDA(nn.Module):
         
         self.backbone_feat_dim = self.backbone_layer.backbone_feat_dim
         
-        self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
-        # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim)
+        # self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim, type="bn")
+        self.feat_embed_layer = Embedding(self.backbone_feat_dim, self.embed_feat_dim)
         
-        self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
-        # self.class_layer = Classifier(self.backbone_feat_dim, class_num=self.class_num)
+        # self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num, type="wn")
+        self.class_layer = Classifier(self.embed_feat_dim, class_num=self.class_num)
     
     def get_emd_feat(self, input_imgs):
         # input_imgs [B, 3, H, W]
@@ -533,6 +533,36 @@ def resnet50(momentum=0.1, track=True):
     # # model = ResNet(data_shape, hidden_size, Block, [1, 1, 1, 1], target_size)
     model = SFDA()
     model.backbone_arch = 'resnet50'
+    # model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
+    # model = convert_layers(model, torch.nn.BatchNorm1d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
+    # if cfg['pre_trained']:
+    #     print('loading pretrained model')
+    #     model = get_pretrained_gn(model)
+        # print(model)
+        # exit()
+    # model.apply(init_param)
+    # print(model,track)
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+    # exit()
+    if cfg['register_hook_BN']:
+        register_preBN_hooks(model, compute_running_mean=cfg['compute_running_mean'], compute_running_var=cfg['compute_running_var'])
+    # exit()
+    ## Register forward hook ##
+    # register_act_hooks(model, compute_mean_norm=cfg['compute_mean_norm'], compute_std_dev=cfg['compute_std_dev'])
+
+    return model
+def resnet101(momentum=0.1, track=True):
+    # data_shape = cfg['data_shape']
+    # target_size = cfg['target_size']
+    # hidden_size = cfg['resnet9']['hidden_size']
+    # # model = ResNet(data_shape, hidden_size, Block, [1, 1, 1, 1], target_size)
+    model = SFDA()
+    model.backbone_arch = 'resnet101'
+    # total_params = sum(p.numel() for p in model.parameters())
+
+    # print(f'Total number of parameters in ResNet-101: {total_params}')
+    # # print(model)
+    # exit()
     # model = convert_layers(model, torch.nn.BatchNorm2d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
     # model = convert_layers(model, torch.nn.BatchNorm1d, torch.nn.GroupNorm, num_groups = 64,convert_weights=False)
     # if cfg['pre_trained']:

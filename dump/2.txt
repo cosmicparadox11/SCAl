@@ -1,0 +1,625 @@
+['dslr', 'amazon']
+Experiment: 2020_webcam_to_dslr_amazon_VITs_40001
+cfg: {'control': {'num_supervised': '40001', 'loss_mode': 'sup-ft-fix', 'num_clients': '6', 'active_rate': '1', 'data_split_mode': 'iid', 'local_epoch': '40-40', 'gm': '0.07', 'sbn': '1'}, 'data_name': 'office31', 'data_name_unsup': 'office31', 'model_name': 'VITs', 'num_supervised_clients': 5, 'num_workers': 0, 'init_seed': 2020, 'num_experiments': 1, 'log_interval': 0.25, 'device': 'cuda:0', 'world_size': 1, 'resume_mode': 1, 'resume_mode_target': 0, 'threshold': 0.8, 'verbose': False, 'switch_epoch': 0, 'cycles': 1, 'd_mode': 'new', 'switch_epoch_pred': 0, 'kl_loss': 0, 'elr_lam': 1.0, 'var_lr': 0.01, 'scheduler_name': 'CosineAnnealingLR', 'DA': 1, 'domain_s': 'webcam', 'domain_u': 'amazon', 'unsup_list': ['dslr', 'amazon'], 'unsup_doms': 'dslr-amazon', 'test_10_crop': False, 'bt': 50, 'adapt_wt': 0, 'avg_cent': 0, 'avg_cent_alpha': 0.5, 'backbone_arch': 'vit-small', 'embed_feat_dim': 256, 'tde': 5, 'pre_trained': 1, 'gamma': 0.1, 'decay': 0.9, 'par': 1, 'tau': 0.5, 'kl': 0, 'kl_weight': 0.1, 'new_lr': 0, 'unsup_mode': 'bmd', 'syn_max_train': 50000, 'compute_mean_norm': True, 'compute_std_dev': False, 'compute_running_mean': True, 'compute_running_var': True, 'mean_norm_reg': 0.01, 'std_dev_reg': 0, 'running_mean': 0, 'running_var': 0, 'wt_actloss': 0.0, 'add_fix': 0, 'full_sup': 0, 'with_BN': 1, 'train_pass': 0, 'module_name': 'None', 'register_hook_BN': 0, 'post_conv': 0, 'num_sup': 0, 'run_shot': 1, 'temp': 8.0, 'wt_avg': 1, 'pretrained_source': 0, 'tag_': '2020_webcam_0.03_VITs_2_sup-ft-fix', 'loss_mse': 0, 'multi_model': 0, 'client_test': 1, 'trk_grad': 0, 'pick': 'checkpoint', 'lambda': 1.0, 'cent_log': 1, 'save_cent': 0, 'logit_div': 0, 'cluster': 0, 'save_epoch': 0, 'new_mix': 0, 'lam': 0.5, 'vit_bn': False, 'var_reg': False, 'global_reg': 0, 'g_lambda': 1.0, 'var_wt': 0.1, 'clip_t': 0, 'cls_ps': False, 'svd_plot': True, 'control_name': '40001_sup-ft-fix_6_1_iid_40-40_0.07_1', 'num_supervised': 40001, 'data_shape': [3, 1000, 1000], 'conv': {'hidden_size': [32, 64]}, 'lenet': {'hidden_size': [20, 50]}, 'resnet9': {'hidden_size': [64, 128, 256, 512]}, 'resnet18': {'hidden_size': [64, 128, 256, 512]}, 'wresnet28x2': {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}, 'wresnet28x8': {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}, 'unsup_ratio': 1, 'loss_mode': 'sup-ft-fix', 'num_clients': 6, 'active_rate': 1.0, 'data_split_mode': 'iid', 'local_epoch': ['40', '40'], 'gm': 0.07, 'sbn': 1, 'server': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 128}, 'num_epochs': 40}, 'client': {'shuffle': {'train': True, 'test': False}, 'batch_size': {'train': 64, 'test': 32}, 'num_epochs': 40}, 'local': {'optimizer_name': 'SGD', 'lr': 0.03, 'momentum': 0.9, 'weight_decay': 0.0005, 'nesterov': True}, 'global': {'batch_size': {'train': 64, 'test': 32}, 'shuffle': {'train': True, 'test': False}, 'num_epochs': 150, 'optimizer_name': 'SGD', 'lr': 1.0, 'momentum': 0.07, 'weight_decay': 0, 'nesterov': False, 'scheduler_name': 'ExponentialLR'}, 'alpha': 0.75, 'domain_tag': 'dslr_amazon', 'model_tag': '2020_webcam_to_dslr_amazon_VITs_40001'}
+supervised source data name: office31
+fetching data office31...
+data name office31
+domain webcam
+test_10crop disabled
+original test len with 20 percent test: 159
+data ready
+list of un supervised domain ['dslr', 'amazon']
+fetching unsupervised domains
+fetching data office31...
+test_10crop disabled
+test len with 100 percent test: 498
+data ready
+fetching unsupervised domains
+fetching data office31...
+test_10crop disabled
+test len with 100 percent test: 2817
+data ready
+False
+False
+False
+150
+number of unsupervised domains: 2
+data len list of sup clients 0
+[3, 3]
+domain id :0,j:0
+data length 398
+split number 3
+len of target 398
+data length 498
+split number 3
+len of target 498
+domain id :1,j:1
+data length 2253
+split number 3
+len of target 2253
+data length 2817
+split number 3
+len of target 2817
+Resume from 51
+0 3
+1 3
+1
+alt-fix_
+entered entered alt-fix mode
+bmd
+[0, 1, 2, 3, 4, 5]
+[3, 2, 5, 4, 0, 1]
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+distributing with bn stats
+traning the following clients [3, 2, 5, 4, 0, 1]
+corresponding domains['amazon', 'amazon', 'dslr', 'dslr', 'amazon', 'dslr']
+traning client 3
+unsupervised training in progess
+datasplit_len 740
+freezing
+tensor(3) amazon
+40
+epoch: 0
+[0.6621621621621622]
+epoch: 1
+[0.6797297297297298]
+epoch: 2
+[0.7202702702702702]
+epoch: 3
+[0.745945945945946]
+epoch: 4
+[0.754054054054054]
+epoch: 5
+[0.7797297297297298]
+epoch: 6
+[0.7797297297297298]
+epoch: 7
+[0.7702702702702703]
+epoch: 8
+[0.7783783783783784]
+epoch: 9
+[0.7905405405405406]
+epoch: 10
+[0.7797297297297298]
+epoch: 11
+[0.7905405405405406]
+epoch: 12
+[0.7837837837837838]
+epoch: 13
+[0.7864864864864864]
+epoch: 14
+[0.8027027027027027]
+epoch: 15
+[0.7972972972972973]
+epoch: 16
+[0.7986486486486486]
+epoch: 17
+[0.7864864864864864]
+epoch: 18
+[0.7851351351351351]
+epoch: 19
+[0.7878378378378378]
+epoch: 20
+[0.7932432432432432]
+epoch: 21
+[0.7851351351351351]
+epoch: 22
+[0.7864864864864864]
+epoch: 23
+[0.8]
+epoch: 24
+[0.7918918918918919]
+epoch: 25
+[0.7878378378378378]
+epoch: 26
+[0.7891891891891892]
+epoch: 27
+[0.7864864864864864]
+epoch: 28
+[0.7932432432432432]
+epoch: 29
+[0.7716216216216216]
+epoch: 30
+[0.7945945945945946]
+epoch: 31
+[0.7905405405405406]
+epoch: 32
+[0.7905405405405406]
+epoch: 33
+[0.7932432432432432]
+epoch: 34
+[0.7797297297297298]
+epoch: 35
+[0.8013513513513514]
+epoch: 36
+[0.7932432432432432]
+epoch: 37
+[0.8054054054054054]
+epoch: 38
+[0.7878378378378378]
+epoch: 39
+[0.8013513513513514]
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Train Epoch (C): 1(0%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.010000  ID: 3(1/6)  Epoch Finished Time: 1:44:12.998508  Experiment Finished Time: 1:44:12.998508
+traning client 2
+unsupervised training in progess
+datasplit_len 740
+freezing
+tensor(2) amazon
+40
+epoch: 0
+[0.6364864864864865]
+epoch: 1
+[0.6581081081081082]
+epoch: 2
+[0.7148648648648649]
+epoch: 3
+[0.7216216216216216]
+epoch: 4
+[0.727027027027027]
+epoch: 5
+[0.7243243243243244]
+epoch: 6
+[0.7716216216216216]
+epoch: 7
+[0.7621621621621621]
+epoch: 8
+[0.7513513513513513]
+epoch: 9
+[0.768918918918919]
+epoch: 10
+[0.7716216216216216]
+epoch: 11
+[0.754054054054054]
+epoch: 12
+[0.7635135135135135]
+epoch: 13
+[0.7567567567567568]
+epoch: 14
+[0.7702702702702703]
+epoch: 15
+[0.772972972972973]
+epoch: 16
+[0.777027027027027]
+epoch: 17
+[0.7662162162162162]
+epoch: 18
+[0.7675675675675676]
+epoch: 19
+[0.7716216216216216]
+epoch: 20
+[0.7594594594594595]
+epoch: 21
+[0.7594594594594595]
+epoch: 22
+[0.7716216216216216]
+epoch: 23
+[0.7716216216216216]
+epoch: 24
+[0.7797297297297298]
+epoch: 25
+[0.7662162162162162]
+epoch: 26
+[0.772972972972973]
+epoch: 27
+[0.7756756756756756]
+epoch: 28
+[0.7648648648648648]
+epoch: 29
+[0.7824324324324324]
+epoch: 30
+[0.7797297297297298]
+epoch: 31
+[0.7878378378378378]
+epoch: 32
+[0.7756756756756756]
+epoch: 33
+[0.7891891891891892]
+epoch: 34
+[0.7824324324324324]
+epoch: 35
+[0.7783783783783784]
+epoch: 36
+[0.7864864864864864]
+epoch: 37
+[0.7783783783783784]
+epoch: 38
+[0.7878378378378378]
+epoch: 39
+[0.7797297297297298]
+traning client 5
+unsupervised training in progess
+datasplit_len 122
+freezing
+tensor(5) dslr
+40
+epoch: 0
+[0.9754098360655737]
+epoch: 1
+[0.9590163934426229]
+epoch: 2
+[0.9590163934426229]
+epoch: 3
+[0.9836065573770492]
+epoch: 4
+[0.9508196721311475]
+epoch: 5
+[0.9754098360655737]
+epoch: 6
+[0.9754098360655737]
+epoch: 7
+[0.9672131147540983]
+epoch: 8
+[0.9754098360655737]
+epoch: 9
+[0.9590163934426229]
+epoch: 10
+[0.9754098360655737]
+epoch: 11
+[0.9508196721311475]
+epoch: 12
+[0.9918032786885246]
+epoch: 13
+[0.9836065573770492]
+epoch: 14
+[0.9918032786885246]
+epoch: 15
+[0.9836065573770492]
+epoch: 16
+[0.9836065573770492]
+epoch: 17
+[0.9590163934426229]
+epoch: 18
+[0.9672131147540983]
+epoch: 19
+[0.9918032786885246]
+epoch: 20
+[0.9590163934426229]
+epoch: 21
+[0.9918032786885246]
+epoch: 22
+[0.9918032786885246]
+epoch: 23
+[0.9672131147540983]
+epoch: 24
+[0.9590163934426229]
+epoch: 25
+[0.9672131147540983]
+epoch: 26
+[0.9672131147540983]
+epoch: 27
+[0.9918032786885246]
+epoch: 28
+[1.0]
+epoch: 29
+[0.9672131147540983]
+epoch: 30
+[0.9918032786885246]
+epoch: 31
+[0.9754098360655737]
+epoch: 32
+[0.9590163934426229]
+epoch: 33
+[0.9836065573770492]
+epoch: 34
+[0.9918032786885246]
+epoch: 35
+[0.9508196721311475]
+epoch: 36
+[0.9836065573770492]
+epoch: 37
+[0.9754098360655737]
+epoch: 38
+[0.9836065573770492]
+epoch: 39
+[0.9672131147540983]
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Train Epoch (C): 1(33%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.010000  ID: 5(3/6)  Epoch Finished Time: 0:49:58.101263  Experiment Finished Time: 0:49:58.101263
+traning client 4
+unsupervised training in progess
+datasplit_len 122
+freezing
+tensor(4) dslr
+40
+epoch: 0
+[0.9918032786885246]
+epoch: 1
+[0.9836065573770492]
+epoch: 2
+[0.9672131147540983]
+epoch: 3
+[0.9590163934426229]
+epoch: 4
+[0.9672131147540983]
+epoch: 5
+[0.9590163934426229]
+epoch: 6
+[0.9836065573770492]
+epoch: 7
+[0.9918032786885246]
+epoch: 8
+[0.9918032786885246]
+epoch: 9
+[0.9672131147540983]
+epoch: 10
+[0.9836065573770492]
+epoch: 11
+[0.9918032786885246]
+epoch: 12
+[0.9426229508196722]
+epoch: 13
+[0.9672131147540983]
+epoch: 14
+[0.9918032786885246]
+epoch: 15
+[0.9836065573770492]
+epoch: 16
+[0.9836065573770492]
+epoch: 17
+[0.9590163934426229]
+epoch: 18
+[1.0]
+epoch: 19
+[0.9918032786885246]
+epoch: 20
+[0.9918032786885246]
+epoch: 21
+[0.9754098360655737]
+epoch: 22
+[0.9918032786885246]
+epoch: 23
+[0.9918032786885246]
+epoch: 24
+[1.0]
+epoch: 25
+[0.9918032786885246]
+epoch: 26
+[0.9918032786885246]
+epoch: 27
+[1.0]
+epoch: 28
+[0.9836065573770492]
+epoch: 29
+[0.9918032786885246]
+epoch: 30
+[0.9836065573770492]
+epoch: 31
+[0.9918032786885246]
+epoch: 32
+[0.9836065573770492]
+epoch: 33
+[0.9836065573770492]
+epoch: 34
+[0.9918032786885246]
+epoch: 35
+[0.9590163934426229]
+epoch: 36
+[0.9754098360655737]
+epoch: 37
+[0.9918032786885246]
+epoch: 38
+[0.9754098360655737]
+epoch: 39
+[0.9836065573770492]
+traning client 0
+unsupervised training in progess
+datasplit_len 740
+freezing
+tensor(0) amazon
+40
+epoch: 0
+[0.6702702702702703]
+epoch: 1
+[0.6810810810810811]
+epoch: 2
+[0.7121621621621622]
+epoch: 3
+[0.7283783783783784]
+epoch: 4
+[0.7364864864864865]
+epoch: 5
+[0.745945945945946]
+epoch: 6
+[0.7554054054054054]
+epoch: 7
+[0.7378378378378379]
+epoch: 8
+[0.7716216216216216]
+epoch: 9
+[0.75]
+epoch: 10
+[0.7621621621621621]
+epoch: 11
+[0.7662162162162162]
+epoch: 12
+[0.7608108108108108]
+epoch: 13
+[0.7851351351351351]
+epoch: 14
+[0.772972972972973]
+epoch: 15
+[0.7797297297297298]
+epoch: 16
+[0.7716216216216216]
+epoch: 17
+[0.7702702702702703]
+epoch: 18
+[0.7783783783783784]
+epoch: 19
+[0.7824324324324324]
+epoch: 20
+[0.7824324324324324]
+epoch: 21
+[0.7797297297297298]
+epoch: 22
+[0.7797297297297298]
+epoch: 23
+[0.772972972972973]
+epoch: 24
+[0.7797297297297298]
+epoch: 25
+[0.7932432432432432]
+epoch: 26
+[0.7864864864864864]
+epoch: 27
+[0.7702702702702703]
+epoch: 28
+[0.7756756756756756]
+epoch: 29
+[0.7851351351351351]
+epoch: 30
+[0.768918918918919]
+epoch: 31
+[0.7797297297297298]
+epoch: 32
+[0.7743243243243243]
+epoch: 33
+[0.7743243243243243]
+epoch: 34
+[0.7635135135135135]
+epoch: 35
+[0.7945945945945946]
+epoch: 36
+[0.7824324324324324]
+epoch: 37
+[0.7905405405405406]
+epoch: 38
+[0.7878378378378378]
+epoch: 39
+[0.777027027027027]
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Train Epoch (C): 1(67%)  Loss: 0.0000  Accuracy: 0.0000  Learning rate: 0.010000  ID: 0(5/6)  Epoch Finished Time: 0:15:49.335779  Experiment Finished Time: 0:15:49.335779
+traning client 1
+unsupervised training in progess
+datasplit_len 122
+freezing
+tensor(1) dslr
+40
+epoch: 0
+[0.9590163934426229]
+epoch: 1
+[0.9754098360655737]
+epoch: 2
+[0.9754098360655737]
+epoch: 3
+[0.9672131147540983]
+epoch: 4
+[0.9836065573770492]
+epoch: 5
+[0.9918032786885246]
+epoch: 6
+[0.9918032786885246]
+epoch: 7
+[0.9672131147540983]
+epoch: 8
+[0.9836065573770492]
+epoch: 9
+[0.9754098360655737]
+epoch: 10
+[0.9672131147540983]
+epoch: 11
+[0.9590163934426229]
+epoch: 12
+[0.9836065573770492]
+epoch: 13
+[0.9918032786885246]
+epoch: 14
+[0.9672131147540983]
+epoch: 15
+[0.9836065573770492]
+epoch: 16
+[0.9754098360655737]
+epoch: 17
+[1.0]
+epoch: 18
+[0.9836065573770492]
+epoch: 19
+[0.9918032786885246]
+epoch: 20
+[1.0]
+epoch: 21
+[0.9918032786885246]
+epoch: 22
+[0.9918032786885246]
+epoch: 23
+[0.9672131147540983]
+epoch: 24
+[0.9836065573770492]
+epoch: 25
+[0.9754098360655737]
+epoch: 26
+[1.0]
+epoch: 27
+[0.9918032786885246]
+epoch: 28
+[1.0]
+epoch: 29
+[0.9836065573770492]
+epoch: 30
+[1.0]
+epoch: 31
+[1.0]
+epoch: 32
+[0.9836065573770492]
+epoch: 33
+[0.9836065573770492]
+epoch: 34
+[0.9918032786885246]
+epoch: 35
+[0.9754098360655737]
+epoch: 36
+[0.9918032786885246]
+epoch: 37
+[0.9918032786885246]
+epoch: 38
+[0.9836065573770492]
+epoch: 39
+[0.9918032786885246]
+FedAvg with BN params
+testing on client models
+num of active clients : 6
+testing client number: tensor(0)
+clinet_domain amazon
+domain:amazon,id:1,client_domain:amazon
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 2.6248  Accuracy: 79.8722
+accuracy 79.87220447284345
+accuracy 79.87220447284345
+testing client number: tensor(1)
+clinet_domain dslr
+domain:dslr,id:0,client_domain:dslr
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 1.3896  Accuracy: 99.3976
+accuracy 99.3975903001655
+accuracy 99.3975903001655
+testing client number: tensor(2)
+clinet_domain amazon
+domain:amazon,id:1,client_domain:amazon
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 2.7717  Accuracy: 78.5588
+accuracy 78.55875044373445
+accuracy 78.55875044373445
+testing client number: tensor(3)
+clinet_domain amazon
+domain:amazon,id:1,client_domain:amazon
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 2.6562  Accuracy: 79.4817
+accuracy 79.48171813986511
+accuracy 79.48171813986511
+testing client number: tensor(4)
+clinet_domain dslr
+domain:dslr,id:0,client_domain:dslr
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 1.3865  Accuracy: 99.3976
+accuracy 99.39759036144578
+accuracy 99.39759036144578
+testing client number: tensor(5)
+clinet_domain dslr
+domain:dslr,id:0,client_domain:dslr
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 1.3242  Accuracy: 99.7992
+accuracy 99.79919678714859
+accuracy 99.79919678714859
+{'dslr': 298.5943774487599, 'amazon': 237.912673056443}
+domian dslr
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 1.3668  Accuracy: 99.5315
+domian amazon
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 2.6842  Accuracy: 79.3042
+89.41784175086715 2.0254982725536292
+Model: 2020_webcam_to_dslr_amazon_VITs_40001  Test Epoch: 1(100%)  Loss: 2.0255  Accuracy: 89.4178
+saving
