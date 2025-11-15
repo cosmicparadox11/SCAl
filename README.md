@@ -1,6 +1,6 @@
 # FedSCAl: Leveraging Server and Client Alignment for Unsupervised Federated Source-Free Domain Adaptation
 
-A guide to setting up, training, and running **SCAl (Semi-supervised Client Alignment)** 
+A guide to setting up, training, and running **SCAl** 
 
 ---
 
